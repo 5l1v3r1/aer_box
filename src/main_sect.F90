@@ -31,7 +31,7 @@
      t_delta = 600 ! Seconds
      t_coag  = 300 ! 5-minute coagulation step
      t_start = 0
-     t_stop  = t_start + (6*60*60) ! 6 hours
+     t_stop  = t_start + (24*60*60) ! 24 hours
      n_bins  = 40
      output_file = 'output.dat'
 
@@ -113,14 +113,14 @@
 
      ! Start with a variety of different initial H2SO4 concs (in ppbv)
      do k=1,n_boxes
-        vvh2so4_Vec(k) = dble(k-1) * 1.0e-9_fp
+        vvh2so4_Vec(k) = dble(k-1) * 10.0e-9_fp
      end do
 
      ! All start with 50 ppbv H2O
      vvH2O_Vec(:) = 50.0e-9_fp
 
      ! All start with no aerosol
-     vvSO4_Arr(:,:) = 0.0e+0_fp
+     vvSO4_Arr(:,:) = 0.0e-9_fp
 
      ! Recalculate surface tension, weight pcg, and density on first step
      Sfc_Ten_Arr(:,:) = 0.0e+0_fp
