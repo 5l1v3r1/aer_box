@@ -5,14 +5,18 @@ module sect_aer_data_mod
   use precision_mod,    only: dp=>f8
   use precision_mod,    only: fp
   !use mo_socol_tracers, only: n_aer_bin, aer_bin
+#if !defined( MDL_BOX )
   use cmn_size_mod,     only: iipar, jjpar, llpar
+#endif
   use physconstants,    only: aer_pi=>pi
   use physconstants,    only: aer_av=>avo
   use physconstants,    only: aer_mwh2o=>h2omw
 
+#if !defined( MDL_BOX )
   USE Input_Opt_Mod,    ONLY: OptInput
   USE State_Chm_Mod,    ONLY : ChmState
   USE Species_Mod                        ! For species database object
+#endif
 
   implicit none
   public 
@@ -45,8 +49,16 @@ module sect_aer_data_mod
   ! Number of microphysics substeps
   integer, parameter :: nastep = 1
 
+#if defined( MDL_BOX )
+  integer :: iipar, jjpar, llpar
+#endif
+
 contains
 
+#if defined( MDL_BOX )
+  subroutine AER_allocate_ini(RC)
+    integer, intent(out) :: RC
+#else
   subroutine AER_allocate_ini(am_I_Root,Input_Opt,State_Chm,RC)
 
     logical, intent(in)         :: am_I_Root
@@ -55,6 +67,7 @@ contains
     integer, intent(out)        :: RC        
 
     TYPE(Species), POINTER      :: ThisSpc
+#endif
 
     integer                     :: n_bins
     integer                     :: k, n
@@ -65,6 +78,12 @@ contains
 
     ! Assume success
     rc = 0
+
+#if defined( MDL_BOX )
+    iipar = 1
+    jjpar = 1
+    llpar = 1
+#endif
 
     ! Needed for coagulation kernel
     allocate(ck(iipar,jjpar,llpar,n_aer_bin,n_aer_bin),stat=as)

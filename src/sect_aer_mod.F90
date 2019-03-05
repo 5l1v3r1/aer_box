@@ -43,7 +43,9 @@ module sect_aer_mod
                                    aer_dry_rad,     &
                                    aer_Vrat
 
+#if defined( USE_TIMERS )
   USE GEOS_Timers_Mod
+#endif
 
   IMPLICIT NONE
   PRIVATE
@@ -106,6 +108,7 @@ module sect_aer_mod
 
 CONTAINS
 !EOC
+#if !defined( MDL_BOX )
 !------------------------------------------------------------------------------
 !                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
@@ -451,6 +454,160 @@ CONTAINS
 
   end subroutine do_sect_aer
 !EOC
+#endif
+#if defined( MDL_BOX )
+  subroutine do_sect_aer(n_boxes,aWP_Arr,aDen_Arr,&
+                         vvSO4_Arr,Sfc_Ten_Arr,vvH2O_Vec,&
+                         vvH2SO4_Vec,T_K_Vec,p_hPa_Vec,&
+                         ndens_Vec,ts_sec,ts_coag,RC)
+    
+    integer, intent(in)     :: n_boxes
+    real(fp), intent(inout) :: aWP_Arr     (n_boxes,n_aer_bin)
+    real(fp), intent(inout) :: aDen_Arr    (n_boxes,n_aer_bin)
+    real(fp), intent(inout) :: vvSO4_Arr   (n_boxes,n_aer_bin)
+    real(fp), intent(inout) :: Sfc_Ten_Arr (n_boxes,n_aer_bin)
+    real(fp), intent(inout) :: vvH2O_Vec   (n_boxes)
+    real(fp), intent(inout) :: vvH2SO4_Vec (n_boxes)
+    real(fp), intent(in)    :: T_K_Vec     (n_boxes)
+    real(fp), intent(in)    :: p_hPa_Vec   (n_boxes)
+    real(fp), intent(in)    :: ndens_Vec   (n_boxes)
+    integer, intent(in)     :: ts_sec
+    integer, intent(in)     :: ts_coag
+    integer, intent(out)    :: RC
+
+    ! Atmospheric conditions
+    real(fp)                :: T_K, p_hPa, air_dens
+    
+    ! Aerosol properties taken from input
+    real(fp)                :: aWP_Box      (n_aer_bin)
+    real(fp)                :: aDen_Box     (n_aer_bin)
+    real(fp)                :: vvSO4_Box    (n_aer_bin)
+    real(fp)                :: ST_Box       (n_aer_bin)
+    real(fp)                :: vvSO4_Box_0  (n_aer_bin)
+    
+    real(fp)                :: vvH2O
+    real(fp)                :: vvH2SO4
+    real(fp)                :: vvH2SO4_0
+
+    ! Aerosol properties calculated during operation
+    real(fp)                :: BVP_Box      (n_aer_bin)
+    real(fp)                :: rWet         (n_aer_bin)
+
+    ! Coagulation kernel
+    real(fp), pointer       :: CK_Box(:,:)
+    
+    ! Loop indices 
+    integer                 :: I,J,K,L,N
+    integer                 :: I_Bin, I_Box
+
+    ! For time step control
+    Integer                 :: NAStep
+    Real(fp)                ::dt_substep
+
+    ! Diagnostics
+    Real(fp)                :: box_grow_d, box_nrate_d, box_wp_d
+    Real(fp)                :: S_Start, S_End
+
+    ! Logicals
+    logical                 :: LAer_Nuc
+    logical                 :: LAer_Grow
+    logical                 :: LAer_Coag
+    logical                 :: Run_Micro
+
+    ! Fake locations
+    I = 1
+    J = 1
+    L = 1
+
+    ! Enable all processes
+    LAer_Nuc  = .True.
+    LAer_Grow = .True.
+    LAer_Coag = .True.
+
+    Run_Micro = (LAer_Nuc.or.LAer_Grow.or.LAer_Coag)
+
+    ! How many substeps?
+    NAStep = NINT(dble(ts_sec)/dble(ts_coag))
+    dt_substep = dble(ts_sec)/dble(NAStep)
+
+    Do I_Box=1,N_Boxes
+       ! Copy properties into temporary variables
+       vvH2O        = vvH2O_Vec  (I_Box)
+       vvH2SO4      = vvH2SO4_Vec(I_Box)
+       ST_Box(:)    = Sfc_Ten_Arr(I_Box,:)
+       aWP_Box(:)   = aWP_Arr    (I_Box,:)
+       aDen_Box(:)  = aDen_Arr   (I_Box,:)
+       vvSO4_Box(:) = vvSO4_Arr  (I_Box,:)
+
+       ! Store for later mass check
+       vvSO4_Box_0(:) = vvSO4_Box(:)
+       vvH2SO4_0      = vvH2SO4
+
+       ! Get properties of location
+       T_K      = T_K_Vec(I_Box)
+       P_hPa    = p_hPa_Vec(I_Box)
+
+       ! For safety's sake (these will be recalculated)
+       BVP_Box(:) = 0.0e+0_fp
+       rWet(:)    = 0.0e+0_fp
+
+       ! Calculate updated weight % H2SO4 and density
+       Call AER_wpden(aWP_Box, aDen_Box, ST_Box, BVP_Box,&
+                      T_K,     P_hPa,    vvH2O,  rWet)
+
+       ! If we aren't running a microphysics step, stop here
+       If (Run_Micro) Then
+          ! Get more met properties
+          air_dens = ndens_vec(I_Box)
+
+          ! Calculate coagulation kernel
+          CK_Box => ck(I,J,L,:,:)
+          If (LAER_coag) &
+          Call Cal_Coag_Kernel(CK_Box,aWP_Box,aDen_Box,T_K,P_hPa)          
+
+          ! Run microphysical processes
+          box_grow_d  = 0.0e+0_fp
+          box_nrate_d = 0.0e+0_fp
+
+          Do K=1,NAStep
+             If (LAER_grow) &
+             Call AER_grow(T_K,       air_dens,   dt_substep, aWP_Box, &
+                           aDen_box,  ST_Box,     BVP_Box,    vvH2So4, &
+                           vvSO4_Box, box_grow_d)
+             If (LAER_nuc) &
+             Call AER_nucleation(T_K,      P_hPa,       air_dens, dt_substep, &
+                                 aWP_Box,  aDen_Box,    vvH2O,    vvH2SO4,    &
+                                 vvSO4_Box,box_nrate_d, box_wp_d              )
+             If (LAER_coag) &
+             Call AER_coagulation(vvSO4_Box,CK_box,air_dens,dt_substep)
+          End Do
+          !aero_grow_d(I,J,L)  = box_grow_d/real(NAStep)
+          !aero_nrate_d(I,J,L) = box_nrate_d/real(NAStep)
+          CK_Box => Null()
+       
+          ! Make sure that the mass hasn't drifted too far 
+          Call AER_mass_check(vvH2SO4, vvSO4_Box,  vvH2SO4_0, vvSO4_Box_0, &
+                              air_dens, s_start, s_end,        RC          )
+          If (RC.ne.0) Then
+             Call Error_Stop('Failure in strat aerosol mass balance', &
+                             'sect_aer_mod.F90')
+          End If
+          !Call AER_Washout(?,?,?,?)
+       End If
+
+       ! Copy results back out
+       vvH2O_Vec  (I_Box) = vvH2O
+       vvH2SO4_Vec(I_Box) = vvH2SO4
+       Sfc_Ten_Arr(I_Box,:) = ST_Box(:)
+       aWP_Arr    (I_Box,:) = aWP_Box(:)
+       aDen_Arr   (I_Box,:) = aDen_Box(:)
+       vvSO4_Arr  (I_Box,:) = vvSO4_Box(:)
+    End Do
+
+    RC = 0
+  end subroutine do_sect_aer
+#endif
+#if !defined( MDL_BOX )
 !------------------------------------------------------------------------------
 !                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
@@ -592,6 +749,44 @@ CONTAINS
     End If
 
   end subroutine init_sect_aer
+#endif
+#if defined( MDL_BOX )
+  subroutine init_sect_aer( n_bins, RC )
+
+    USE sect_aer_data_mod,    Only : aer_allocate_ini
+    integer, intent(in) :: n_bins
+    integer, optional, intent(out) :: RC
+    integer             :: k, RC_temp, AS
+    character(len=255)  :: err_msg
+ 
+    n_aer_bin = n_bins 
+    Call AER_allocate_ini(RC_temp)
+    If (RC_temp.ne.0) Then
+       If (present(RC)) RC = rc_temp
+       Write(err_msg,'(a,I4)') 'Bad allocation exit code: ', RC_temp
+       Call error_stop(err_msg,'init_sect_aer (sect_aer_mod.F90)')
+    End If
+
+    ! Allocate module variables
+    Allocate(ID_Bins(n_aer_bin,n_aer_type),STAT=AS)
+    If (AS.ne.0) Then
+       Call Debug_Msg('Failed to allocate ID_Bins')
+       RC = -1
+       Return
+    End If
+    ID_Bins = 0
+
+    Do k=1,n_bins
+       ID_Bins(k,1) = k
+    End Do
+    id_H2O = n_bins + 1
+    id_H2SO4 = n_bins + 2
+    RC_temp = 0
+
+    if (present(RC)) RC = RC_temp
+
+  end subroutine
+#endif
 !EOC
 !------------------------------------------------------------------------------
 !                  GEOS-Chem Global Chemical Transport Model                  !
@@ -2210,7 +2405,9 @@ CONTAINS
 !
 ! !USES:
 !
+#if !defined( MDL_BOX )
     Use Error_Mod, Only : Debug_msg
+#endif
 !
 !
 ! !INPUT VARIABLES:
@@ -2296,6 +2493,18 @@ CONTAINS
 
   end subroutine AER_mass_check
 !EOC
+#if defined( MDL_BOX )
+  subroutine debug_msg(out_msg)
+    character(len=*) :: out_msg
+    write(*,*) trim(out_msg)
+  end subroutine debug_msg
+  subroutine error_stop(out_msg,out_loc)
+    character(len=*) :: out_msg, out_loc
+    write(*,'(a,a)') 'SIMULATION FAILED IN ', trim(out_loc)
+    write(*,'(a,a)') 'ERROR: ',trim(out_msg)
+    stop 10
+  end subroutine error_stop
+#endif
 !------------------------------------------------------------------------------
 !                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
@@ -2309,6 +2518,11 @@ CONTAINS
 !\\
 ! !INTERFACE:
 !
+#if defined( MDL_BOX ) 
+  subroutine aer_sedimentation()
+  write(*,*) 'SEDIMENTATION NOT VALID IN BOX MODEL'
+  end subroutine aer_sedimentation
+#else
   SUBROUTINE AER_sedimentation(Sul_vv,T_K,P_hPa,aWP_Col,aDen_Col,dt,dens,dz,aero_vt_d)
 !
 ! !USES:
@@ -2436,6 +2650,7 @@ CONTAINS
     end do
 
   END SUBROUTINE AER_sedimentation
+#endif
 !EOC
 !------------------------------------------------------------------------------
 !                  GEOS-Chem Global Chemical Transport Model                  !
