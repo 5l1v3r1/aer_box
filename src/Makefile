@@ -43,6 +43,7 @@ debug:
 
 clean:
 	rm -rf $(OBJS) $(PROGRAM) $(MODS)
+	rm -rf ../bin/*
 
 .PHONY: debug default clean
 
