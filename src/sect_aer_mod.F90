@@ -1788,7 +1788,11 @@ CONTAINS
     !=======================================================================
     ! AER_NUCLEATION begins here!
     !=======================================================================
-       
+
+      ! Need to do this here rather than later, to enable voln to be calculated
+      h2so4=h2so4_vv*dens
+      an = Sul_vv(:)*dens
+
        n_rate=0._dp
        cluster_r=0._dp
        aer_vol_wet(:)=aer_mass(:)/aWP_Box(:)/.01/aDEN_Box(:)*1.E12 !calculate wet volume of aerosol size bins in um^3 !eth_af_dryS            
@@ -1805,9 +1809,6 @@ CONTAINS
       endif
       
       if (t_k>=252._dp .or. p_hPa<=1._dp) return
-
-      h2so4=h2so4_vv*dens
-      an = Sul_vv(:)*dens
 
       h2o=max(1e-6_dp,H2O_vv)
       vpice = exp(9.550426_dp - 5723.265_dp/t_k +  &
