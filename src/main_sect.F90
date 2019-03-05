@@ -1,6 +1,7 @@
   program run_aerosol
      use precision_mod
      use sect_aer_mod
+     use sect_aux_mod
      use physconstants, only : rstarg, avo
      !use sect_aer_data_mod
 
@@ -19,13 +20,20 @@
      real(fp), allocatable  :: aWP_Arr(:,:)
      real(fp), allocatable  :: vvSO4_Arr(:,:)
 
+     ! Output settings
+     integer :: output_fID
+     character(len=255) :: output_file
+
      write(*,*) 'Initializing simulation.'
+
+     ! Default settings - these could be read from a file
      n_boxes = 10
      t_delta = 600 ! Seconds
      t_coag  = 300 ! 5-minute coagulation step
      t_start = 0
      t_stop  = t_start + (6*60*60) ! 6 hours
      n_bins  = 40
+     output_file = 'output.dat'
 
      call init_sect_aer(n_bins,rc)
      if (rc.ne.0) then
@@ -97,11 +105,13 @@
      Sfc_Ten_Arr(:,:) = 0.0e+0_fp
 
      ! Simple initial conditions
-     T_K_Vec(:) = 290.0e+0_fp
+     T_K_Vec(:) = 280.0e+0_fp
      p_hPa_Vec(:) = 90.0e+0_fp
 
      ! Molecules/cm3 ((m3/cm3) * (molec/mol) * (p/RT), where p/RT = n/V = mol/m3)
      ndens_Vec(:) = 1.0e-6 * AVO * p_hPa_Vec * 100.0e+0_fp / (RStarG * T_K_Vec)
+
+     write(*,'(2(x,E16.5E4))') ndens_vec(1), ndens_vec(n_boxes)
 
      ! Start with a variety of different initial H2SO4 concs (in ppbv)
      do k=1,n_boxes
@@ -119,6 +129,15 @@
      aWP_Arr    (:,:) = 0.0e+0_fp
      aDen_Arr   (:,:) = 0.0e+0_fp
 
+     ! Prepare output file
+     OPEN(UNIT=output_fID,FILE=output_file,ACCESS='SEQUENTIAL',&
+          FORM='FORMATTED',STATUS='UNKNOWN')
+
+     ! Write the header
+     call write_state(n_bins=n_bins,out_id=output_fID,write_header=.True.)
+
+     ! Write the initial state
+     
      write(*,*) 'Beginning main time stepping loop.'
 
      t_sim = t_start
@@ -128,10 +147,25 @@
         !                 vvSO4_Arr,Sfc_Ten_Arr,vvH2O_Vec,&
         !                 vvH2SO4_Vec,T_K_Vec,p_hPa_Vec,&
         !                 ndens_Vec,t_delta,t_coag,RC)
+        !! Perform output
+        !do k=1,n_boxes
+        !  call write_state(write_data=.True.,t_now=t_sim,T_K=T_K_Vec(k),&
+        !    p_hPa=p_hPa_Vec(k),ndens=ndens_Vec(k),vvH2O=vvH2O_Vec(k),&
+        !    vvH2SO4=vvH2SO4_Vec(k),vvSO4=vvSO4_Arr(k,:),&
+        !    n_bins=n_bins,out_id=output_fID)
+        !end do
+        ! Advance time
         t_sim = t_sim + t_delta
      end do
 
-     ! Deallocate
+     ! Close the output file
+     Close(output_fID)
+     If (AS.ne.0) Then
+       write(*,*) 'Could not close output file'
+       stop
+     End If
+
+     ! Deallocate and clean up
      call cleanup_sect_aer( .False. )
 
      if (allocated(T_K_Vec    )) deallocate(T_K_Vec)     

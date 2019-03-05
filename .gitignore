@@ -34,3 +34,7 @@
 *.out
 *.app
 sect_aer
+
+# Output and input
+input.dat
+output.dat

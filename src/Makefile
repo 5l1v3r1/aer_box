@@ -56,4 +56,6 @@ sect_aer_data_mod.o               : sect_aer_data_mod.F90 physconstants.o precis
 
 sect_aer_mod.o                    : sect_aer_mod.F90 sect_aer_data_mod.o physconstants.o precision_mod.o
 
-main_sect.o                       : main_sect.F90 sect_aer_mod.o sect_aer_data_mod.o precision_mod.o physconstants.o
+main_sect.o                       : main_sect.F90 sect_aer_mod.o sect_aer_data_mod.o precision_mod.o physconstants.o sect_aux_mod.o
+
+sect_aux_mod.o                    : sect_aux_mod.F90 precision_mod.o
