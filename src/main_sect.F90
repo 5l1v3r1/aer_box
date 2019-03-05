@@ -111,8 +111,6 @@
      ! Molecules/cm3 ((m3/cm3) * (molec/mol) * (p/RT), where p/RT = n/V = mol/m3)
      ndens_Vec(:) = 1.0e-6 * AVO * p_hPa_Vec * 100.0e+0_fp / (RStarG * T_K_Vec)
 
-     write(*,'(2(x,E16.5E4))') ndens_vec(1), ndens_vec(n_boxes)
-
      ! Start with a variety of different initial H2SO4 concs (in ppbv)
      do k=1,n_boxes
         vvh2so4_Vec(k) = dble(k-1) * 1.0e-9_fp
@@ -143,11 +141,11 @@
      t_sim = t_start
      do while ( t_sim < t_stop )
         ! Simulate t_delta
-        !call do_sect_aer(n_boxes,aWP_Arr,aDen_Arr,&
-        !                 vvSO4_Arr,Sfc_Ten_Arr,vvH2O_Vec,&
-        !                 vvH2SO4_Vec,T_K_Vec,p_hPa_Vec,&
-        !                 ndens_Vec,t_delta,t_coag,RC)
-        !! Perform output
+        call do_sect_aer(n_boxes,aWP_Arr,aDen_Arr,&
+                         vvSO4_Arr,Sfc_Ten_Arr,vvH2O_Vec,&
+                         vvH2SO4_Vec,T_K_Vec,p_hPa_Vec,&
+                         ndens_Vec,t_delta,t_coag,RC)
+        ! Perform output
         do k=1,n_boxes
           call write_state(write_data=.True.,t_now=t_sim,T_K=T_K_Vec(k),&
             p_hPa=p_hPa_Vec(k),ndens=ndens_Vec(k),vvH2O=vvH2O_Vec(k),&
