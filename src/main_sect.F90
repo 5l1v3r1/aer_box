@@ -148,12 +148,12 @@
         !                 vvH2SO4_Vec,T_K_Vec,p_hPa_Vec,&
         !                 ndens_Vec,t_delta,t_coag,RC)
         !! Perform output
-        !do k=1,n_boxes
-        !  call write_state(write_data=.True.,t_now=t_sim,T_K=T_K_Vec(k),&
-        !    p_hPa=p_hPa_Vec(k),ndens=ndens_Vec(k),vvH2O=vvH2O_Vec(k),&
-        !    vvH2SO4=vvH2SO4_Vec(k),vvSO4=vvSO4_Arr(k,:),&
-        !    n_bins=n_bins,out_id=output_fID)
-        !end do
+        do k=1,n_boxes
+          call write_state(write_data=.True.,t_now=t_sim,T_K=T_K_Vec(k),&
+            p_hPa=p_hPa_Vec(k),ndens=ndens_Vec(k),vvH2O=vvH2O_Vec(k),&
+            vvH2SO4=vvH2SO4_Vec(k),vvSO4=vvSO4_Arr(k,:),&
+            box_id=k,n_bins=n_bins,out_id=output_fID)
+        end do
         ! Advance time
         t_sim = t_sim + t_delta
      end do
