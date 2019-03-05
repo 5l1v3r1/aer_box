@@ -105,7 +105,7 @@
      Sfc_Ten_Arr(:,:) = 0.0e+0_fp
 
      ! Simple initial conditions
-     T_K_Vec(:) = 280.0e+0_fp
+     T_K_Vec(:) = 240.0e+0_fp
      p_hPa_Vec(:) = 90.0e+0_fp
 
      ! Molecules/cm3 ((m3/cm3) * (molec/mol) * (p/RT), where p/RT = n/V = mol/m3)
