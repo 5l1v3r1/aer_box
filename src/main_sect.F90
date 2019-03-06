@@ -11,6 +11,7 @@
     
      integer               :: t_start, t_sim, t_delta, t_stop, t_coag
      integer               :: n_bins, rc, as, k
+     integer               :: dt_output, t_next_output
 
      ! Simulation variables
      real(fp), allocatable  :: T_K_Vec(:), p_hPa_Vec(:), nDens_Vec(:)
@@ -28,12 +29,17 @@
 
      ! Default settings - these could be read from a file
      n_boxes = 10
-     t_delta = 600 ! Seconds
-     t_coag  = 300 ! 5-minute coagulation step
+     t_delta = 120! Seconds
+     dt_output = 300 ! Seconds
+    
+     ! WARNING: Recommend keeping this timestep!
+     t_coag  = 10 ! 5-minute coagulation step
      t_start = 0
-     t_stop  = t_start + (24*60*60) ! 24 hours
+     t_stop  = t_start + (12*60*60) ! 24 hours
      n_bins  = 40
      output_file = 'output.dat'
+
+     if (dt_output < t_delta) dt_output = t_delta
 
      call init_sect_aer(n_bins,rc)
      if (rc.ne.0) then
@@ -145,6 +151,7 @@
      write(*,*) 'Beginning main time stepping loop.'
 
      t_sim = t_start
+     t_next_output = t_start + dt_output
      do while ( t_sim < t_stop )
         ! Simulate t_delta
         call do_sect_aer(n_boxes,aWP_Arr,aDen_Arr,&
@@ -155,12 +162,15 @@
         t_sim = t_sim + t_delta
 
         ! Perform output
-        do k=1,n_boxes
-          call write_state(write_data=.True.,t_now=t_sim,T_K=T_K_Vec(k),&
-            p_hPa=p_hPa_Vec(k),ndens=ndens_Vec(k),vvH2O=vvH2O_Vec(k),&
-            vvH2SO4=vvH2SO4_Vec(k),vvSO4=vvSO4_Arr(k,:),&
-            box_id=k,n_bins=n_bins,out_id=output_fID)
-        end do
+        if ((t_sim >= t_stop).or.(t_sim >= t_next_output)) then
+           do k=1,n_boxes
+             call write_state(write_data=.True.,t_now=t_sim,T_K=T_K_Vec(k),&
+               p_hPa=p_hPa_Vec(k),ndens=ndens_Vec(k),vvH2O=vvH2O_Vec(k),&
+               vvH2SO4=vvH2SO4_Vec(k),vvSO4=vvSO4_Arr(k,:),&
+               box_id=k,n_bins=n_bins,out_id=output_fID)
+           end do
+           if (t_sim >= t_next_output) t_next_output = t_next_output + dt_output
+        end if
      end do
 
      ! Close the output file
