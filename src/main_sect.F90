@@ -134,6 +134,7 @@
      aDen_Arr   (:,:) = 0.0e+0_fp
 
      ! Prepare output file
+     output_fID = 8
      OPEN(UNIT=output_fID,FILE=output_file,ACCESS='SEQUENTIAL',&
           FORM='FORMATTED',STATUS='UNKNOWN')
 
