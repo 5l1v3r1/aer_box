@@ -1,14 +1,18 @@
 FC = gfortran
-FLFLAGS = -g
-FCFLAGS := -cpp -w -std=legacy -fautomatic -DMDL_BOX -DUSE_REAL8
+FCFLAGS := -cpp -w -std=legacy -fautomatic -DMDL_BOX -DUSE_REAL8 -fbacktrace
 # Debug
-FCFLAGS += -g -fbounds-check -fbacktrace
-FCFLAGS += -ffpe-trap=invalid,zero,overflow
-FCFLAGS += -finit-real=snan
-# Performance
-#FCFLAGS += -O3 -funroll-loops
-PROGRAM = sect_aer
-PROJ_OBJ = $(PROGRAM).o
+ifdef DEBUG
+  FCFLAGS += -g -fbounds-check
+  FCFLAGS += -ffpe-trap=invalid,zero,overflow
+  FCFLAGS += -finit-real=snan
+  FLFLAGS := -g
+else
+  # Performance
+  FCFLAGS += -O3 -funroll-loops
+  FLFLAGS :=
+endif
+PROGRAM := sect_aer
+PROJ_OBJ := $(PROGRAM).o
 
 FREEFORM := -ffree-form -ffree-line-length-none
 R8       := -fdefault-real-8 -fdefault-double-8
