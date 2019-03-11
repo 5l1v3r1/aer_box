@@ -43,6 +43,10 @@ module sect_aer_mod
                                    aer_dry_rad,     &
                                    aer_Vrat
 
+#if defined( MDL_BOX )
+  USE sect_aux_mod, only : error_stop, debug_msg
+#endif
+
 #if defined( USE_TIMERS )
   USE GEOS_Timers_Mod
 #endif
@@ -2494,18 +2498,6 @@ CONTAINS
 
   end subroutine AER_mass_check
 !EOC
-#if defined( MDL_BOX )
-  subroutine debug_msg(out_msg)
-    character(len=*) :: out_msg
-    write(*,*) trim(out_msg)
-  end subroutine debug_msg
-  subroutine error_stop(out_msg,out_loc)
-    character(len=*) :: out_msg, out_loc
-    write(*,'(a,a)') 'SIMULATION FAILED IN ', trim(out_loc)
-    write(*,'(a,a)') 'ERROR: ',trim(out_msg)
-    stop 10
-  end subroutine error_stop
-#endif
 !------------------------------------------------------------------------------
 !                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------

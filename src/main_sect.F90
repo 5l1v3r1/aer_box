@@ -37,7 +37,7 @@
      t_start = 0
      t_stop  = t_start + (12*60*60) ! 24 hours
      n_bins  = 40
-     output_file = 'output.dat'
+     output_file = 'output.nc'
 
      if (dt_output < t_delta) dt_output = t_delta
 
@@ -134,12 +134,11 @@
      aDen_Arr   (:,:) = 0.0e+0_fp
 
      ! Prepare output file
-     output_fID = 8
-     OPEN(UNIT=output_fID,FILE=output_file,ACCESS='SEQUENTIAL',&
-          FORM='FORMATTED',STATUS='UNKNOWN')
-
-     ! Write the header
-     call write_state(n_bins=n_bins,out_id=output_fID,write_header=.True.)
+     call write_state(n_bins=n_bins,out_id=output_fID,out_file=trim(output_file),&
+                      write_header=.True.,rc=rc)
+     if (rc.ne.0) then
+       call error_stop('Could not prepare output file','main_sect')
+     end if
 
      ! Write the initial state
      do k=1,n_boxes
@@ -175,8 +174,9 @@
      end do
 
      ! Close the output file
-     Close(output_fID)
-     If (AS.ne.0) Then
+     !Close(output_fID)
+     Call close_output(output_fID,rc)
+     If (rc.ne.0) Then
        write(*,*) 'Could not close output file'
        stop
      End If
