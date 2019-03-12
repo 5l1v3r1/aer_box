@@ -9,7 +9,8 @@
 
      integer               :: n_boxes
     
-     integer               :: t_start, t_sim, t_delta, t_stop, t_coag
+     integer               :: t_start, t_sim, t_stop
+     integer               :: dt_main, dt_coag
      integer               :: n_bins, rc, as, k
      integer               :: dt_output, t_next_output
      integer               :: output_idx
@@ -26,21 +27,23 @@
      integer :: output_fID, idx_output
      character(len=255) :: output_file
 
+     ! Initial conditions
+     real(fp)               :: T_K_min,     T_K_max
+     real(fp)               :: p_hPa_min,   p_hPa_max
+     real(fp)               :: vvH2SO4_min, vvH2SO4_max
+     real(fp)               :: vvH2O_Init,  vvSO2_Init
+
      write(*,*) 'Initializing simulation.'
 
-     ! Default settings - these could be read from a file
-     n_boxes = 10
-     t_delta = 120! Seconds
-     dt_output = 300 ! Seconds
-    
-     ! WARNING: Recommend keeping this timestep!
-     t_coag  = 10 ! 5-minute coagulation step
-     t_start = 0
-     t_stop  = t_start + (12*60*60) ! 24 hours
-     n_bins  = 40
-     output_file = 'output.nc'
+     call read_input('input.box',dt_main,dt_output,&
+        dt_coag,t_start,t_stop,n_bins,n_boxes,&
+        output_file,T_K_Min,T_K_Max,p_hPa_min,p_hPa_max,&
+        vvH2SO4_min,vvH2SO4_max,vvH2O_Init,vvSO2_Init,rc)
+     if (rc.ne.0) Then
+       Call error_stop('Failed to read input file','main',rc)
+     End If
 
-     if (dt_output < t_delta) dt_output = t_delta
+     if (dt_output < dt_main) dt_output = dt_main
 
      call init_sect_aer(n_bins,rc)
      if (rc.ne.0) then
@@ -111,20 +114,21 @@
      end if
      Sfc_Ten_Arr(:,:) = 0.0e+0_fp
 
-     ! Simple initial conditions
-     T_K_Vec(:) = 240.0e+0_fp
-     p_hPa_Vec(:) = 90.0e+0_fp
+     ! Set initial conditions
+     do k=1,n_boxes
+        p_hPa_vec(K)   = ((dble(k-1)/dble(n_boxes-1)) * &
+           (p_hPa_max   - p_hPa_min  )) + p_hPa_min
+        T_K_Vec(k)     = ((dble(k-1)/dble(n_boxes-1)) * &
+           (T_K_max     - T_K_min    )) + T_K_min
+        vvH2SO4_Vec(k) = ((dble(k-1)/dble(n_boxes-1)) * &
+           (vvH2SO4_max - vvH2SO4_min)) + vvH2SO4_min
+     end do
 
      ! Molecules/cm3 ((m3/cm3) * (molec/mol) * (p/RT), where p/RT = n/V = mol/m3)
      ndens_Vec(:) = 1.0e-6 * AVO * p_hPa_Vec * 100.0e+0_fp / (RStarG * T_K_Vec)
 
-     ! Start with a variety of different initial H2SO4 concs (in ppbv)
-     do k=1,n_boxes
-        vvh2so4_Vec(k) = dble(k-1) * 10.0e-9_fp
-     end do
-
      ! All start with 50 ppbv H2O
-     vvH2O_Vec(:) = 50.0e-9_fp
+     vvH2O_Vec(:) = vvH2O_Init
 
      ! All start with no aerosol
      vvSO4_Arr(:,:) = 0.0e-9_fp
@@ -157,13 +161,13 @@
      t_sim = t_start
      t_next_output = t_start + dt_output
      do while ( t_sim < t_stop )
-        ! Simulate t_delta
+        ! Simulate dt_main
         call do_sect_aer(n_boxes,aWP_Arr,aDen_Arr,&
                          vvSO4_Arr,Sfc_Ten_Arr,vvH2O_Vec,&
                          vvH2SO4_Vec,T_K_Vec,p_hPa_Vec,&
-                         ndens_Vec,t_delta,t_coag,RC)
+                         ndens_Vec,dt_main,dt_coag,RC)
         ! Advance time
-        t_sim = t_sim + t_delta
+        t_sim = t_sim + dt_main
 
         ! Perform output
         if ((t_sim >= t_stop).or.(t_sim >= t_next_output)) then

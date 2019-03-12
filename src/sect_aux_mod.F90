@@ -6,10 +6,15 @@ module sect_aux_mod
   implicit none
   private
 
+  PUBLIC  :: read_input
   PUBLIC  :: write_state
   PUBLIC  :: close_output
   PUBLIC  :: error_stop
   PUBLIC  :: debug_msg
+
+  interface parse_line
+    module procedure parse_int, parse_flt, parse_char
+  end interface parse_line
 
   contains
 
@@ -597,6 +602,126 @@ module sect_aux_mod
    
     rc = nf90_close(ncid=out_id)
  
-  end subroutine
+  end subroutine close_output
+
+  subroutine read_input(in_file,dt_main,dt_output,&
+        dt_coag,t_start,t_stop,n_bins,n_boxes,&
+        output_file,T_K_Min,T_K_Max,p_hPa_min,p_hPa_max,&
+        vvH2SO4_min,vvH2SO4_max,vvH2O_Init,vvSO2_Init,rc)
+
+    character(len=*),   intent(in   ) :: in_file
+    integer,            intent(out  ) :: dt_main
+    integer,            intent(out  ) :: dt_output
+    integer,            intent(out  ) :: dt_coag
+    integer,            intent(out  ) :: t_start
+    integer,            intent(out  ) :: t_stop
+    integer,            intent(out  ) :: n_bins
+    integer,            intent(out  ) :: n_boxes
+    character(len=255), intent(out  ) :: output_file
+    real(fp),           intent(out  ) :: T_K_Min, T_K_Max
+    real(fp),           intent(out  ) :: p_hPa_Min, p_hPa_Max
+    real(fp),           intent(out  ) :: vvH2SO4_Min, vvH2SO4_Max
+    real(fp),           intent(out  ) :: vvH2O_Init
+    real(fp),           intent(out  ) :: vvSO2_Init
+    integer,            intent(out  ) :: RC
+
+    integer :: file_id
+    character(len=80) :: temp_line
+
+    ! Assume OK
+    RC = 0
+
+    ! Open the input file
+    open(newunit=file_id,file=Trim(in_file),status='old')
+
+    ! Ignore first two lines
+    Read(file_id,*)
+    Read(file_id,*)
+
+    ! Use simple fixed formatting
+    t_start = 0
+    call parse_line(file_id,t_stop      )
+    call parse_line(file_id,dt_main     )
+    call parse_line(file_id,dt_coag     )
+    call parse_line(file_id,dt_output   )
+    call parse_line(file_id,n_bins      )
+    call parse_line(file_id,n_boxes     )
+    call parse_line(file_id,output_file )
+    call parse_line(file_id,vvH2O_Init  )
+    call parse_line(file_id,vvSO2_Init  )
+    call parse_line(file_id,T_K_Min     )
+    call parse_line(file_id,T_K_Max     )
+    call parse_line(file_id,p_hPa_Min   )
+    call parse_line(file_id,p_hPa_Max   )
+    call parse_line(file_id,vvH2SO4_Min )
+    call parse_line(file_id,vvH2SO4_Max )
+    !dt_main=300
+    !dt_coag=10
+    !dt_output=180
+    !n_bins=40
+    !n_boxes=20
+    !output_file  = 'output.nc'
+    !vvH2O_Init   = 50.0e-9
+    !vvSO2_Init   =  0.0e-9
+    !T_K_Min      = 240.0e+0
+    !T_K_Max      = 240.0e+0
+    !p_hPa_Min    =  90.0e+0
+    !p_hPa_Max    =  90.0e+0
+    !vvH2SO4_Min  =  20.0e-9
+    !vvH2SO4_Max  =  20.0e-9
+    close(file_id)
+   
+    ! Convert VMRs from ppbv to v/v
+    vvH2SO4_Min = vvH2SO4_Min * 1.0e-9
+    vvH2SO4_Max = vvH2SO4_Max * 1.0e-9
+    vvSO2_Init = vvSO2_Init * 1.0e-9
+    vvH2O_Init = vvH2O_Init * 1.0e-9
+
+    ! Convert end time from hours to seconds
+    t_stop = t_stop * 3600
+
+    ! For the user... 
+    Write(*,'(a30," : ",I10)'    ) 'Start time (hours)', t_start
+    Write(*,'(a30," : ",I10)'    ) 'End time (hours)', t_stop/3600
+    Write(*,'(a30," : ",I10)'    ) 'Main time step (s)', dt_main
+    Write(*,'(a30," : ",I10)'    ) 'Coagulation time step (s)', dt_coag
+    Write(*,'(a30," : ",I10)'    ) 'Output time step (s)', dt_output
+    Write(*,'(a30," : ",I10)'    ) 'Number of bins', n_bins
+    Write(*,'(a30," : ",I10)'    ) 'Number of boxes', n_boxes
+    Write(*,'(a30," : ",a)'      ) 'Output file', trim(output_file)
+    Write(*,'(a30," : ",I10)'    ) 'Number of boxes', n_boxes
+    Write(*,'(a30," : ",F10.2)'  ) 'H2O VMR (ppbv)', vvH2O_Init*1.0e9
+    Write(*,'(a30," : ",F10.2)'  ) 'SO2 VMR (ppbv)', vvSO2_Init*1.0e9
+    Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'T range (K)', T_K_Min, T_K_Max
+    Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'P range (hPa)', p_hPa_Min, p_hPa_Max
+    Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'H2SO4 range (ppbv)', vvH2SO4_Min*1.0e9, vvH2SO4_Max*1.0e9
+  end subroutine read_input
+  
+  subroutine parse_int(fid, var)
+    integer,          intent(in)    :: fid
+    integer,          intent(out)   :: var
+    character(len=80)               :: temp_line
+    Read(fid,'(a)') temp_line
+    temp_line = trim(temp_line(28:80))
+    Read(temp_line,*) var
+  end subroutine parse_int
+
+  subroutine parse_flt(fid, var)
+    integer,          intent(in)    :: fid
+    real(fp),         intent(out)   :: var
+    character(len=80)               :: temp_line
+    Read(fid,'(a)') temp_line
+    temp_line = trim(temp_line(28:80))
+    Read(temp_line,*) var
+  end subroutine parse_flt
+
+  subroutine parse_char(fid, var)
+    integer,          intent(in)    :: fid
+    character(len=*) ,intent(out)   :: var
+    character(len=80)               :: temp_line
+    Read(fid,'(a)') temp_line
+    temp_line = trim(temp_line(28:80))
+    Read(temp_line,*) var
+  end subroutine parse_char
 
 end module sect_aux_mod
