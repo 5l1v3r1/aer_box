@@ -12,6 +12,7 @@
      integer               :: t_start, t_sim, t_delta, t_stop, t_coag
      integer               :: n_bins, rc, as, k
      integer               :: dt_output, t_next_output
+     integer               :: output_idx
 
      ! Simulation variables
      real(fp), allocatable  :: T_K_Vec(:), p_hPa_Vec(:), nDens_Vec(:)
@@ -22,7 +23,7 @@
      real(fp), allocatable  :: vvSO4_Arr(:,:)
 
      ! Output settings
-     integer :: output_fID
+     integer :: output_fID, idx_output
      character(len=255) :: output_file
 
      write(*,*) 'Initializing simulation.'
@@ -134,19 +135,22 @@
      aDen_Arr   (:,:) = 0.0e+0_fp
 
      ! Prepare output file
-     call write_state(n_bins=n_bins,out_id=output_fID,out_file=trim(output_file),&
+     call write_state(n_bins=n_bins,n_expt=n_boxes,out_id=output_fID,&
+                      out_file=trim(output_file),&
                       write_header=.True.,rc=rc)
      if (rc.ne.0) then
        call error_stop('Could not prepare output file','main_sect')
      end if
 
      ! Write the initial state
-     do k=1,n_boxes
-       call write_state(write_data=.True.,t_now=t_start,T_K=T_K_Vec(k),&
-         p_hPa=p_hPa_Vec(k),ndens=ndens_Vec(k),vvH2O=vvH2O_Vec(k),&
-         vvH2SO4=vvH2SO4_Vec(k),vvSO4=vvSO4_Arr(k,:),&
-         box_id=k,n_bins=n_bins,out_id=output_fID)
-     end do
+     idx_output = 1
+     call write_state(write_data=.True.,t_now=t_start,T_K=T_K_Vec,&
+       p_hPa=p_hPa_Vec,ndens=ndens_Vec,vvH2O=vvH2O_Vec,&
+       vvH2SO4=vvH2SO4_Vec,vvSO4=vvSO4_Arr,i_time=idx_output,&
+       n_expt=n_boxes,n_bins=n_bins,out_id=output_fID,rc=rc)
+     if (rc.ne.0) then
+       call error_stop('Could not perform initial write','main_sect')
+     end if
      
      write(*,*) 'Beginning main time stepping loop.'
 
@@ -163,12 +167,14 @@
 
         ! Perform output
         if ((t_sim >= t_stop).or.(t_sim >= t_next_output)) then
-           do k=1,n_boxes
-             call write_state(write_data=.True.,t_now=t_sim,T_K=T_K_Vec(k),&
-               p_hPa=p_hPa_Vec(k),ndens=ndens_Vec(k),vvH2O=vvH2O_Vec(k),&
-               vvH2SO4=vvH2SO4_Vec(k),vvSO4=vvSO4_Arr(k,:),&
-               box_id=k,n_bins=n_bins,out_id=output_fID)
-           end do
+           idx_output = idx_output + 1
+           call write_state(write_data=.True.,t_now=t_sim,T_K=T_K_Vec,&
+             p_hPa=p_hPa_Vec,ndens=ndens_Vec,vvH2O=vvH2O_Vec,&
+             vvH2SO4=vvH2SO4_Vec,vvSO4=vvSO4_Arr,i_time=idx_output,&
+             n_expt=n_boxes,n_bins=n_bins,out_id=output_fID,rc=rc)
+           if (rc.ne.0) then
+             call error_stop('Could not perform mid-simulation write','main_sect')
+           end if
            if (t_sim >= t_next_output) t_next_output = t_next_output + dt_output
         end if
      end do
