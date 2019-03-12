@@ -13,7 +13,7 @@ module sect_aux_mod
   PUBLIC  :: debug_msg
 
   interface parse_line
-    module procedure parse_int, parse_flt, parse_char
+    module procedure parse_int, parse_flt, parse_char, parse_bool
   end interface parse_line
 
   contains
@@ -607,7 +607,7 @@ module sect_aux_mod
   subroutine read_input(in_file,dt_main,dt_output,&
         dt_coag,t_start,t_stop,n_bins,n_boxes,&
         output_file,T_K_Min,T_K_Max,p_hPa_min,p_hPa_max,&
-        vvH2SO4_min,vvH2SO4_max,vvH2O_Init,vvSO2_Init,rc)
+        vvH2SO4_min,vvH2SO4_max,vvH2O_Init,vvSO2_Init,LDebug,rc)
 
     character(len=*),   intent(in   ) :: in_file
     integer,            intent(out  ) :: dt_main
@@ -623,6 +623,7 @@ module sect_aux_mod
     real(fp),           intent(out  ) :: vvH2SO4_Min, vvH2SO4_Max
     real(fp),           intent(out  ) :: vvH2O_Init
     real(fp),           intent(out  ) :: vvSO2_Init
+    logical,            intent(out  ) :: LDebug
     integer,            intent(out  ) :: RC
 
     integer :: file_id
@@ -655,6 +656,7 @@ module sect_aux_mod
     call parse_line(file_id,p_hPa_Max   )
     call parse_line(file_id,vvH2SO4_Min )
     call parse_line(file_id,vvH2SO4_Max )
+    call parse_line(file_id,ldebug      )
     !dt_main=300
     !dt_coag=10
     !dt_output=180
@@ -681,20 +683,23 @@ module sect_aux_mod
     t_stop = t_stop * 3600
 
     ! For the user... 
-    Write(*,'(a30," : ",I10)'    ) 'Start time (hours)', t_start
-    Write(*,'(a30," : ",I10)'    ) 'End time (hours)', t_stop/3600
-    Write(*,'(a30," : ",I10)'    ) 'Main time step (s)', dt_main
-    Write(*,'(a30," : ",I10)'    ) 'Coagulation time step (s)', dt_coag
-    Write(*,'(a30," : ",I10)'    ) 'Output time step (s)', dt_output
-    Write(*,'(a30," : ",I10)'    ) 'Number of bins', n_bins
-    Write(*,'(a30," : ",I10)'    ) 'Number of boxes', n_boxes
-    Write(*,'(a30," : ",a)'      ) 'Output file', trim(output_file)
-    Write(*,'(a30," : ",I10)'    ) 'Number of boxes', n_boxes
-    Write(*,'(a30," : ",F10.2)'  ) 'H2O VMR (ppbv)', vvH2O_Init*1.0e9
-    Write(*,'(a30," : ",F10.2)'  ) 'SO2 VMR (ppbv)', vvSO2_Init*1.0e9
-    Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'T range (K)', T_K_Min, T_K_Max
-    Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'P range (hPa)', p_hPa_Min, p_hPa_Max
-    Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'H2SO4 range (ppbv)', vvH2SO4_Min*1.0e9, vvH2SO4_Max*1.0e9
+    If (LDebug) Then
+      Write(*,'(a30," : ",I10)'    ) 'Start time (hours)', t_start
+      Write(*,'(a30," : ",I10)'    ) 'End time (hours)', t_stop/3600
+      Write(*,'(a30," : ",I10)'    ) 'Main time step (s)', dt_main
+      Write(*,'(a30," : ",I10)'    ) 'Coagulation time step (s)', dt_coag
+      Write(*,'(a30," : ",I10)'    ) 'Output time step (s)', dt_output
+      Write(*,'(a30," : ",I10)'    ) 'Number of bins', n_bins
+      Write(*,'(a30," : ",I10)'    ) 'Number of boxes', n_boxes
+      Write(*,'(a30," : ",a)'      ) 'Output file', trim(output_file)
+      Write(*,'(a30," : ",I10)'    ) 'Number of boxes', n_boxes
+      Write(*,'(a30," : ",F10.2)'  ) 'H2O VMR (ppbv)', vvH2O_Init*1.0e9
+      Write(*,'(a30," : ",F10.2)'  ) 'SO2 VMR (ppbv)', vvSO2_Init*1.0e9
+      Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'T range (K)', T_K_Min, T_K_Max
+      Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'P range (hPa)', p_hPa_Min, p_hPa_Max
+      Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'H2SO4 range (ppbv)', vvH2SO4_Min*1.0e9, vvH2SO4_Max*1.0e9
+      Write(*,'(a30," : ",L1)'               ) 'Show debug output', LDebug
+    End If
   end subroutine read_input
   
   subroutine parse_int(fid, var)
@@ -723,5 +728,14 @@ module sect_aux_mod
     temp_line = trim(temp_line(28:80))
     Read(temp_line,*) var
   end subroutine parse_char
+
+  subroutine parse_bool(fid, var)
+    integer,          intent(in)    :: fid
+    logical,          intent(out)   :: var
+    character(len=80)               :: temp_line
+    Read(fid,'(a)') temp_line
+    temp_line = trim(temp_line(28:80))
+    Read(temp_line,*) var
+  end subroutine parse_bool
 
 end module sect_aux_mod

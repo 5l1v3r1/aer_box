@@ -1,6 +1,7 @@
   program run_aerosol
      use precision_mod
      use sect_aer_mod
+     use sect_aer_data_mod, only : aer_dry_rad
      use sect_aux_mod
      use physconstants, only : rstarg, avo
      !use sect_aer_data_mod
@@ -14,6 +15,7 @@
      integer               :: n_bins, rc, as, k
      integer               :: dt_output, t_next_output
      integer               :: output_idx
+     logical               :: LDebug
 
      ! Simulation variables
      real(fp), allocatable  :: T_K_Vec(:), p_hPa_Vec(:), nDens_Vec(:)
@@ -38,7 +40,7 @@
      call read_input('input.box',dt_main,dt_output,&
         dt_coag,t_start,t_stop,n_bins,n_boxes,&
         output_file,T_K_Min,T_K_Max,p_hPa_min,p_hPa_max,&
-        vvH2SO4_min,vvH2SO4_max,vvH2O_Init,vvSO2_Init,rc)
+        vvH2SO4_min,vvH2SO4_max,vvH2O_Init,vvSO2_Init,LDebug,rc)
      if (rc.ne.0) Then
        Call error_stop('Failed to read input file','main',rc)
      End If
@@ -154,6 +156,14 @@
        n_expt=n_boxes,n_bins=n_bins,out_id=output_fID,rc=rc)
      if (rc.ne.0) then
        call error_stop('Could not perform initial write','main_sect')
+     end if
+
+     ! State radii
+     If (LDebug) Then
+       Write(*,*) 'Aerosol radius data:'
+       Do k=1,size(aer_dry_rad)
+         Write(*,'(" => Bin ",I3,": ",F10.6," um")') k, aer_dry_rad(k)
+       End Do
      end if
      
      write(*,*) 'Beginning main time stepping loop.'
