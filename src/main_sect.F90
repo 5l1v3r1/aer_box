@@ -15,7 +15,7 @@
      integer               :: n_bins, rc, as, k
      integer               :: dt_output, t_next_output
      integer               :: output_idx
-     logical               :: LDebug
+     logical               :: LDebug, LImplicit_Coag
 
      ! Simulation variables
      real(fp), allocatable  :: T_K_Vec(:), p_hPa_Vec(:), nDens_Vec(:)
@@ -40,7 +40,8 @@
      call read_input('input.box',dt_main,dt_output,&
         dt_coag,t_start,t_stop,n_bins,n_boxes,&
         output_file,T_K_Min,T_K_Max,p_hPa_min,p_hPa_max,&
-        vvH2SO4_min,vvH2SO4_max,vvH2O_Init,vvSO2_Init,LDebug,rc)
+        vvH2SO4_min,vvH2SO4_max,vvH2O_Init,vvSO2_Init,&
+        LImplicit_Coag,LDebug,rc)
      if (rc.ne.0) Then
        Call error_stop('Failed to read input file','main',rc)
      End If
@@ -175,7 +176,8 @@
         call do_sect_aer(n_boxes,aWP_Arr,aDen_Arr,&
                          vvSO4_Arr,Sfc_Ten_Arr,vvH2O_Vec,&
                          vvH2SO4_Vec,T_K_Vec,p_hPa_Vec,&
-                         ndens_Vec,dt_main,dt_coag,RC)
+                         ndens_Vec,dt_main,dt_coag,&
+                         limplicit_coag,RC)
         ! Advance time
         t_sim = t_sim + dt_main
 

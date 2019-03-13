@@ -607,7 +607,8 @@ module sect_aux_mod
   subroutine read_input(in_file,dt_main,dt_output,&
         dt_coag,t_start,t_stop,n_bins,n_boxes,&
         output_file,T_K_Min,T_K_Max,p_hPa_min,p_hPa_max,&
-        vvH2SO4_min,vvH2SO4_max,vvH2O_Init,vvSO2_Init,LDebug,rc)
+        vvH2SO4_min,vvH2SO4_max,vvH2O_Init,vvSO2_Init,&
+        LImplicit_Coag,LDebug,rc)
 
     character(len=*),   intent(in   ) :: in_file
     integer,            intent(out  ) :: dt_main
@@ -623,6 +624,7 @@ module sect_aux_mod
     real(fp),           intent(out  ) :: vvH2SO4_Min, vvH2SO4_Max
     real(fp),           intent(out  ) :: vvH2O_Init
     real(fp),           intent(out  ) :: vvSO2_Init
+    logical,            intent(out  ) :: LImplicit_Coag
     logical,            intent(out  ) :: LDebug
     integer,            intent(out  ) :: RC
 
@@ -656,21 +658,8 @@ module sect_aux_mod
     call parse_line(file_id,p_hPa_Max   )
     call parse_line(file_id,vvH2SO4_Min )
     call parse_line(file_id,vvH2SO4_Max )
+    call parse_line(file_id,limplicit_coag)
     call parse_line(file_id,ldebug      )
-    !dt_main=300
-    !dt_coag=10
-    !dt_output=180
-    !n_bins=40
-    !n_boxes=20
-    !output_file  = 'output.nc'
-    !vvH2O_Init   = 50.0e-9
-    !vvSO2_Init   =  0.0e-9
-    !T_K_Min      = 240.0e+0
-    !T_K_Max      = 240.0e+0
-    !p_hPa_Min    =  90.0e+0
-    !p_hPa_Max    =  90.0e+0
-    !vvH2SO4_Min  =  20.0e-9
-    !vvH2SO4_Max  =  20.0e-9
     close(file_id)
    
     ! Convert VMRs from ppbv to v/v
@@ -698,6 +687,7 @@ module sect_aux_mod
       Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'T range (K)', T_K_Min, T_K_Max
       Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'P range (hPa)', p_hPa_Min, p_hPa_Max
       Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'H2SO4 range (ppbv)', vvH2SO4_Min*1.0e9, vvH2SO4_Max*1.0e9
+      Write(*,'(a30," : ",L1)'               ) 'Use implicit coag.',LImplicit_Coag
       Write(*,'(a30," : ",L1)'               ) 'Show debug output', LDebug
     End If
   end subroutine read_input

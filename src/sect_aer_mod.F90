@@ -28,7 +28,6 @@ module sect_aer_mod
   USE Sect_Aer_Data_Mod,    ONLY : bvp,       & ! Eq. vapor pressure of H2SO4
                                    st,        & ! Surface tension
                                    airvdold,  & ! ???
-                                   fijk,      & ! Volume fractions for coag scheme
                                    ck           ! Coagulation kernel
 
   ! Constants
@@ -64,9 +63,11 @@ module sect_aer_mod
 !
   PRIVATE :: AER_wpden
   PRIVATE :: Cal_Coag_Kernel
+  PRIVATE :: Cal_Coag_Kernel_Implicit
   PRIVATE :: AER_grow
   PRIVATE :: AER_nucleation
   PRIVATE :: AER_coagulation
+  PRIVATE :: AER_coagulation_Implicit
   PRIVATE :: AER_mass_check
   PRIVATE :: AER_sedimentation
   PRIVATE :: localminmax
@@ -182,6 +183,9 @@ CONTAINS
     Real(fp)               :: Sul_vv(n_aer_bin), Sul_vv_old(n_aer_bin)
     Real(fp)               :: Sul_col(LLPAR,n_aer_bin)
 
+    ! For implicit coagulation
+    Real(fp)               :: fijk_Box(n_aer_bin,n_aer_bin,n_aer_bin)
+
     ! Substep length
     Real(fp)               :: dt_substep, dt_step
 
@@ -214,6 +218,7 @@ CONTAINS
     Logical                :: LAER_nuc
     Logical                :: LAER_grow
     Logical                :: LAER_coag
+    Logical                :: LAER_coag_imp
     Logical                :: LAER_sed
 
     ! For diagnostics
@@ -238,6 +243,9 @@ CONTAINS
     LAER_grow = Input_Opt%LAER_grow
     LAER_coag = Input_Opt%LAER_coag
     LAER_sed  = Input_Opt%LAER_sed
+
+    ! Implicit coagulation?
+    LAER_coag_imp = .True.
 
     If (am_I_Root) Then
        write(*,*) 'Running Do_Sect_Aer'
@@ -264,7 +272,7 @@ CONTAINS
     !$OMP PRIVATE(  H2O_vv,     H2SO4_vv, H2O_vv_old, H2SO4_vv_old ) &
     !$OMP PRIVATE(  Sul_vv_old, T_K,      P_hPa,      ST_Box       ) &
     !$OMP PRIVATE(  air_dens,   CK_Box,   BVP_Box,    rWet         ) &
-    !$OMP PRIVATE(  box_grow_d, box_wp_d, box_nrate_d              ) &
+    !$OMP PRIVATE(  box_grow_d, box_wp_d, box_nrate_d,fijk_Box     ) &
     !$OMP PRIVATE(  s_start,    s_end,    RC                       ) &
     !$OMP SCHEDULE( DYNAMIC, 1                                     )
     Do I=1,IIPAR
@@ -323,6 +331,11 @@ CONTAINS
              If (LAER_coag) &
              Call Cal_Coag_Kernel(CK_Box,aWP_Box,aDen_Box,T_K,P_hPa)          
 
+             ! Calculate volume fractions
+             fijk_Box = 0.0e+0_fp
+             If (LAER_coag.and.LAER_Coag_Imp) &
+             Call Cal_Coag_Kernel_Implicit(fijk_Box,aWP_Box,aDen_Box)
+
              ! Run microphysical processes
              box_grow_d  = 0.0e+0_fp
              box_nrate_d = 0.0e+0_fp
@@ -336,8 +349,10 @@ CONTAINS
                 Call AER_nucleation(T_K,     P_hPa,       air_dens, dt_substep, &
                                     aWP_Box, aDen_Box,    H2O_vv,   H2SO4_vv,   &
                                     Sul_vv,  box_nrate_d, box_wp_d              )
-                If (LAER_coag) &
+                If (LAER_coag.and.(.not.LAER_Coag_Imp)) &
                 Call AER_coagulation(Sul_vv,CK_box,air_dens,dt_substep)
+                If (LAER_coag.and.LAER_Coag_Imp) &
+                Call AER_coagulation_Implicit(Sul_vv,fijk_box,CK_box,aWP_Box,aDen_Box,air_dens,dt_substep)
              End Do
              aero_grow_d(I,J,L)  = box_grow_d/real(NAStep)
              aero_nrate_d(I,J,L) = box_nrate_d/real(NAStep)
@@ -463,7 +478,8 @@ CONTAINS
   subroutine do_sect_aer(n_boxes,aWP_Arr,aDen_Arr,&
                          vvSO4_Arr,Sfc_Ten_Arr,vvH2O_Vec,&
                          vvH2SO4_Vec,T_K_Vec,p_hPa_Vec,&
-                         ndens_Vec,ts_sec,ts_coag,RC)
+                         ndens_Vec,ts_sec,ts_coag,&
+                         LAER_Coag_Imp,RC)
     
     integer, intent(in)     :: n_boxes
     real(fp), intent(inout) :: aWP_Arr     (n_boxes,n_aer_bin)
@@ -477,6 +493,7 @@ CONTAINS
     real(fp), intent(in)    :: ndens_Vec   (n_boxes)
     integer, intent(in)     :: ts_sec
     integer, intent(in)     :: ts_coag
+    logical, intent(in)     :: LAer_Coag_Imp
     integer, intent(out)    :: RC
 
     ! Atmospheric conditions
@@ -499,6 +516,7 @@ CONTAINS
 
     ! Coagulation kernel
     real(fp), pointer       :: CK_Box(:,:)
+    real(fp)                :: fijk_Box(n_aer_bin,n_aer_bin,n_aer_bin)
     
     ! Loop indices 
     integer                 :: I,J,K,L,N
@@ -569,6 +587,11 @@ CONTAINS
           If (LAER_coag) &
           Call Cal_Coag_Kernel(CK_Box,aWP_Box,aDen_Box,T_K,P_hPa)          
 
+          ! If using implicit coagulation..
+          fijk_Box = 0.0e+0_fp
+          If (LAER_coag.and.LAER_Coag_Imp) &
+          Call Cal_Coag_Kernel_Implicit(fijk_Box,aWP_Box,aDen_Box)
+
           ! Run microphysical processes
           box_grow_d  = 0.0e+0_fp
           box_nrate_d = 0.0e+0_fp
@@ -582,8 +605,10 @@ CONTAINS
              Call AER_nucleation(T_K,      P_hPa,       air_dens, dt_substep, &
                                  aWP_Box,  aDen_Box,    vvH2O,    vvH2SO4,    &
                                  vvSO4_Box,box_nrate_d, box_wp_d              )
-             If (LAER_coag) &
+             If (LAER_coag.and.(.not.LAER_Coag_Imp)) &
              Call AER_coagulation(vvSO4_Box,CK_box,air_dens,dt_substep)
+             If (LAER_coag.and.LAER_Coag_Imp) &
+             Call AER_Coagulation_Implicit(vvSO4_Box,fijk_Box,CK_box,aWP_Box,aDen_Box,air_dens,dt_substep)
           End Do
           !aero_grow_d(I,J,L)  = box_grow_d/real(NAStep)
           !aero_nrate_d(I,J,L) = box_nrate_d/real(NAStep)
@@ -1443,6 +1468,78 @@ CONTAINS
     pvh2so4=pvh2so4*1000.
  
   end subroutine pvolume_h2so4
+!EOC
+!------------------------------------------------------------------------------
+!                  GEOS-Chem Global Chemical Transport Model                  !
+!------------------------------------------------------------------------------
+!BOP
+!
+! !ROUTINE: cal_coag_kernel_implicit
+!
+! !DESCRIPTION: Subroutine Cal\_Coag\_Kernel\_Implicit calculates the
+! coagulation kernel for the implicit scheme
+!\\
+!\\
+! !INTERFACE:
+!
+  SUBROUTINE cal_coag_kernel_implicit(fijk_Box,aWP_Box,aDen_Box)
+!
+! !USES:
+!
+! -- Nothing --
+!
+! !INPUT VARIABLES:
+!
+      real(dp), intent(in)    :: aWP_Box(n_aer_bin)
+      real(dp), intent(in)    :: aDen_Box(n_aer_bin)
+!
+! !OUPUT PARAMETERS:
+!
+      real(dp), intent(inout) :: fijk_Box(n_aer_bin,n_aer_bin,n_aer_bin)
+! 
+! !REVISION HISTORY:
+!  04 Dec 2018 - S.D.Eastham - Adapted from SOCOL version
+!EOP
+!------------------------------------------------------------------------------
+!BOC
+!
+! !LOCAL VARIABLES:
+!
+    integer :: i,j,k,nsize
+    real(dp) :: aer_vol_wet(n_aer_bin)
+    real(dp) :: vij
+      
+    !=======================================================================
+    ! CAL_COAG_KERNEL_IMPLICIT begins here!
+    !=======================================================================
+
+    ! Calculate wet volume of aerosol size bins
+    aer_vol_wet(:)=aer_mass(:)/aWP_Box(:)/.01/aDen_Box(:)*1.E12 
+    
+    ! Copy this over for expediency
+    nsize=n_aer_bin
+    do i=1,nsize
+    do j=1,nsize
+       vij = aer_vol_wet(i) + aer_vol_wet(j)
+       do k=1,nsize
+          fijk_box(i,j,k) = 0._dp
+          if (k.eq.nsize) then
+             if (vij.ge.aer_vol_wet(k)) fijk_box(i,j,k) = 1.0_dp
+          end if
+          if (k.lt.nsize.and.k.gt.1) then
+             if (vij.lt.aer_vol_wet(k+1).and.vij.ge.aer_vol_wet(k)) then
+                fijk_box(i,j,k) = &
+                   (aer_vol_wet(k+1)-vij)/(aer_vol_wet(k+1)-aer_vol_wet(k))*aer_vol_wet(k)/vij
+             end if
+             if (vij.lt.aer_vol_wet(k).and.vij.gt.aer_vol_wet(k-1)) then
+                fijk_box(i,j,k) = 1._dp - fijk_box(i,j,k-1)
+             end if
+          end if
+       end do
+    end do
+    end do
+
+  END SUBROUTINE cal_coag_kernel_implicit
 !EOC
 !------------------------------------------------------------------------------
 !                  GEOS-Chem Global Chemical Transport Model                  !
@@ -2318,6 +2415,126 @@ CONTAINS
 !------------------------------------------------------------------------------
 !BOP
 !
+! !ROUTINE: aer_coagulation_implicit
+!
+! !DESCRIPTION: Function AER\_coagulation\_implicit calculates the effect of
+! coagulation, redistributing mass between the bins accordingly. This 
+! uses an implicit, rather than explicit, numerical integration scheme.
+!\\
+!\\
+! !INTERFACE:
+!
+  SUBROUTINE AER_coagulation_implicit(Sul_vv,fijk_box,CK_box,aWP_Box,aDen_Box,dens,dt)
+!
+! !USES:
+!
+! -- Nothing --
+!
+!
+! !INPUT VARIABLES:
+!
+    real(dp), intent(in) :: fijk_box(n_aer_bin,n_aer_bin,n_aer_bin) ! Volume fractions
+    real(dp), intent(in) :: CK_box(n_aer_bin,n_aer_bin)             ! Coagulation kernel
+    real(dp), intent(in) :: aWP_Box(n_aer_bin)                      ! Wt pcg (%)
+    real(dp), intent(in) :: aDen_Box(n_aer_bin)                     ! Density (g/cm3)
+    real(dp), intent(in) :: dens                                    ! Air dens (#/cm3)
+    real(dp), intent(in) :: dt                                      ! Substep length (s)
+!
+! !OUTPUT VARIABLES:
+!
+    REAL(dp), INTENT(inout) :: Sul_vv(n_aer_bin)        ! SO4 in each bin (v/v)
+! 
+! !REVISION HISTORY:
+!  04 Dec 2018 - S.D.Eastham - Adapted from SOCOL version
+!EOP
+!------------------------------------------------------------------------------
+!BOC
+!
+! !LOCAL VARIABLES:
+!
+    integer :: nlt,nha, jd, nsize, ik, jk, k, I, J
+    real(dp) :: dn(n_aer_bin), an0(n_aer_bin),an(n_aer_bin)
+    real(dp) :: s,f,al,total1,total2,tmin,mass_error
+
+    real(dp) :: aer_vol_wet(n_aer_bin), aer_r_wet(n_aer_bin) !eth_af_dryS
+    integer :: i_limit
+   
+    real(dp) :: nm, dm, dm1(n_aer_bin) 
+    real(dp) :: vkold(n_aer_bin), vknew(n_aer_bin)
+
+    !=======================================================================
+    ! AER_COAGULATION_IMPLICIT begins here!
+    !=======================================================================
+
+    nsize=n_aer_bin
+
+    !particles/cm^3
+    an0=sul_vv(:)*dens/aer_molec
+
+    an = an0
+    if (sum(an)<=0.) return
+
+    ! Calculate wet volume of aerosol size bins in um^3 !eth_af_dryS            
+    aer_vol_wet(:)=aer_mass(:)/aWP_Box(:)/.01/aDEN_Box(:)*1.E12 
+
+    ! Get the volumetric mixing ratio of wet aerosol
+    vkold(:) = an(:) * aer_vol_wet(:)
+    vknew(:) = 0.0e+0_dp
+
+    total1=sum(an0*aer_molec)
+
+    !write(*,'(a)') 'Before coag:'
+    !do k=1,nsize
+    !   write(*,'("--> ",I3,3(x,E16.5E4))') k,an0(k),sul_vv(k),aer_vol_wet(k)
+    !end do
+
+    do k=1,nsize
+       nm  = 0.0e+0_dp 
+       dm1(:) = (1.0e+0_dp - fijk_box(k,:,k))*ck_box(k,:)*an(:)
+       dm = 1.0e+0_dp + dt * sum(dm1)
+       if (k.eq.1) then
+          vknew(k) = vkold(k)/dm
+       else
+          do jk=1,k
+          do ik=1,k-1
+             if (fijk_box(ik,jk,k).ne.0.0e+0_dp) then
+                nm = nm + fijk_box(ik,jk,k) * ck_box(ik,jk) * vknew(ik) * an(jk)
+             end if
+          end do
+          end do
+          vknew(k) = (vkold(k) + dt*nm)/dm
+       end if
+       an(k) = vknew(k)/aer_vol_wet(k)
+    end do
+    
+    !write(*,'(a)') 'After coag:'
+    !do k=1,nsize
+    !   write(*,'("--> ",I3,3(x,E16.5E4))') k,an(k),an(k)*aer_molec(k)/dens,aer_vol_wet(k)
+    !end do
+
+    total2=sum(an*aer_molec)
+
+    If (total2.ne.total2) then
+      call Error_Stop('NaN in coagulation','AER_coagulation_implicit',10)
+    End If
+
+    mass_error = abs((total2-total1)/total1)
+    if (mass_error > 1E-6 ) then 
+      ! Problem - "mass issue"?
+      an=an*total1/total2
+      if (mass_error > 0.01e+0 ) then
+        write(*,'(a,F10.4,a)') 'MASS ERROR IN I-COAG: ',100.0*mass_error,'%'
+      endif
+    endif
+    Sul_vv(:) = an*aer_molec/dens
+
+  END SUBROUTINE AER_coagulation_implicit
+!EOC
+!------------------------------------------------------------------------------
+!                  GEOS-Chem Global Chemical Transport Model                  !
+!------------------------------------------------------------------------------
+!BOP
+!
 ! !ROUTINE: aer_coagulation
 !
 ! !DESCRIPTION: Function AER\_coagulation calculates the effect of particle
@@ -2353,7 +2570,9 @@ CONTAINS
 !
     integer :: nlt,nha, jd, nsize, ik, jk, k, I, J
     real(dp) :: dn(n_aer_bin), an0(n_aer_bin),an(n_aer_bin)
-    real(dp) :: s,f,al,total1,total2,tmin
+    real(dp) :: s,f,al,total1,total2,tmin,mass_error
+
+    integer :: i_limit
     
     !=======================================================================
     ! AER_COAGULATION begins here!
@@ -2378,14 +2597,24 @@ CONTAINS
        ENDDO
     ENDDO
     tmin=dt
+    !i_limit = 0
     do k=1,n_aer_bin
        if(-dn(k)*dt > 0.9*an(k)) tmin=min(tmin,-0.9*an(k)/dn(k))
+       !if(-dn(k)*dt > 0.9*an(k)) then
+       !   tmin=min(tmin,-0.9*an(k)/dn(k))
+       !   i_limit = k
+       !end if
     enddo
+    !if (i_limit > 0) then
+    !  write(*,'(a,I3,a,F12.7)') 'LIMITED by bin ', i_limit, ' to ', tmin
+    !end if
     an=max(0.,an+dn*tmin)
     total2=sum(an*aer_molec)
-    if (abs((total2-total1)/total1) > 1E-3 ) then 
+    mass_error = abs((total2-total1)/total1)
+    if (mass_error > 1E-3 ) then 
       ! Problem - "mass issue"?
       an=an*total1/total2
+      write(*,'(a,F10.4,a)') 'MASS ERROR IN X-COAG: ',100.0*mass_error,'%'
     endif
     
     Sul_vv(:) = an*aer_molec/dens
