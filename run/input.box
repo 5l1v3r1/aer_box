@@ -1,0 +1,20 @@
+ AEROSOL BOX MODEL INPUT FILE       
+-------------------------+----------
+ Simulation length (hr)  | 24       
+ Outer time step (sec)   | 600     
+ Coagulation step (sec)  | 120      
+ Output time step (sec)  | 600      
+ Number of bins          | 40       
+ Number of simulations   | 1       
+ Output file name        | output.nc
+ H2O (ppbv)              | 50.0     
+ SO2 (ppbv)              | 0.0      
+ Minimum temperature (K) | 240.0    
+ Maximum temperature (K) | 240.0    
+ Minimum pressure (hPa)  | 90.0     
+ Maximum pressure (hPa)  | 90.0     
+ Minimum H2SO4 (ppbv)    | 10.0    
+ Maximum H2SO4 (ppbv)    | 10.0    
+ Implicit coag scheme?   | T
+ Show debug info?        | F
+-------------------------+----------
