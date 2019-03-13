@@ -118,14 +118,20 @@
      Sfc_Ten_Arr(:,:) = 0.0e+0_fp
 
      ! Set initial conditions
-     do k=1,n_boxes
-        p_hPa_vec(K)   = ((dble(k-1)/dble(n_boxes-1)) * &
-           (p_hPa_max   - p_hPa_min  )) + p_hPa_min
-        T_K_Vec(k)     = ((dble(k-1)/dble(n_boxes-1)) * &
-           (T_K_max     - T_K_min    )) + T_K_min
-        vvH2SO4_Vec(k) = ((dble(k-1)/dble(n_boxes-1)) * &
-           (vvH2SO4_max - vvH2SO4_min)) + vvH2SO4_min
-     end do
+     if (n_boxes.eq.1) then
+       T_K_vec(1)     = (T_K_min     + T_K_max    )/2.0
+       p_hPa_vec(1)   = (p_hPa_min   + p_hPa_max  )/2.0
+       vvH2SO4_vec(1) = (vvH2SO4_min + vvH2SO4_max)/2.0
+     else
+       do k=1,n_boxes
+         p_hPa_vec(K)   = ((dble(k-1)/dble(n_boxes-1)) * &
+            (p_hPa_max   - p_hPa_min  )) + p_hPa_min
+         T_K_Vec(k)     = ((dble(k-1)/dble(n_boxes-1)) * &
+            (T_K_max     - T_K_min    )) + T_K_min
+         vvH2SO4_Vec(k) = ((dble(k-1)/dble(n_boxes-1)) * &
+            (vvH2SO4_max - vvH2SO4_min)) + vvH2SO4_min
+       end do
+     end if
 
      ! Molecules/cm3 ((m3/cm3) * (molec/mol) * (p/RT), where p/RT = n/V = mol/m3)
      ndens_Vec(:) = 1.0e-6 * AVO * p_hPa_Vec * 100.0e+0_fp / (RStarG * T_K_Vec)
