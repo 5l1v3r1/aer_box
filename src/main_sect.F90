@@ -1,7 +1,7 @@
   program run_aerosol
      use precision_mod
      use sect_aer_mod
-     use sect_aer_data_mod, only : aer_dry_rad
+     use sect_aer_data_mod, only : aer_dry_rad, aer_Vrat
      use sect_aux_mod
      use physconstants, only : rstarg, avo
      !use sect_aer_data_mod

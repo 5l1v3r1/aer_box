@@ -29,7 +29,8 @@ module sect_aer_data_mod
   !!real(dp), allocatable, save :: aDen(:,:,:,:), aWP(:,:,:,:)   ! aerosol density, weight percent
   real(dp), parameter :: den_h2so4=1.8E-12_dp ! pure h2so4 density in g/um^3, used for calculating h2so4 mass/particle !eth_af_dryS
   real(dp), parameter :: aer_R0=3.9376E-4_dp !smallest bin's dry sulfate radius in um
-  real(dp), parameter ::  aer_Vrat=2.0_dp !multiplication factor between neighbouring bins
+  !real(dp), parameter ::  aer_Vrat=2.0_dp !multiplication factor between neighbouring bins
+  real(dp) :: aer_Vrat !multiplication factor between neighbouring bins
   real(dp), allocatable :: aer_mass(:),aer_molec(:),aer_dry_rad(:)
   real(dp), allocatable, target :: st(:,:,:,:), bvp(:,:,:,:)
   real(dp), allocatable, target :: airvdold(:,:,:,:)
@@ -145,6 +146,14 @@ contains
     fijk = 0._dp
     !calculate aerosol dry sulfate mass !eth_af_dryS
 
+    if (n_aer_bin.eq.40) then
+       ! Volume doubling
+       aer_Vrat = 2.0e+0_dp
+    else
+       ! Try to get the same range covered as the 40-bin model
+       aer_Vrat = 2.0**(real(39,dp)/real(n_aer_bin-1,dp))
+    end if
+    
     do k=1,n_aer_bin
       if (k.eq.1) then
          aer_mass(k)=den_h2so4*4./3.*aer_pi*aer_R0**3 !mass H2SO4/particle in g
