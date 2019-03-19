@@ -608,7 +608,9 @@ module sect_aux_mod
         dt_coag,t_start,t_stop,n_bins,n_boxes,&
         output_file,T_K_Min,T_K_Max,p_hPa_min,p_hPa_max,&
         vvH2SO4_min,vvH2SO4_max,vvH2O_Init,vvSO2_Init,&
+        LImplicit_Coag,LDebug,LNuc,LGrow,LCoag,&
         LImplicit_Coag,LDebug,rc)
+        rc)
 
     character(len=*),   intent(in   ) :: in_file
     integer,            intent(out  ) :: dt_main
@@ -626,10 +628,14 @@ module sect_aux_mod
     real(fp),           intent(out  ) :: vvSO2_Init
     logical,            intent(out  ) :: LImplicit_Coag
     logical,            intent(out  ) :: LDebug
+    logical,            intent(out  ) :: LNuc
+    logical,            intent(out  ) :: LGrow
+    logical,            intent(out  ) :: LCoag
     integer,            intent(out  ) :: RC
 
     integer :: file_id
     character(len=80) :: temp_line
+    character(len=80) :: coag_str
 
     ! Assume OK
     RC = 0
@@ -660,6 +666,9 @@ module sect_aux_mod
     call parse_line(file_id,vvH2SO4_Max )
     call parse_line(file_id,limplicit_coag)
     call parse_line(file_id,ldebug      )
+    call parse_line(file_id,lNuc           )
+    call parse_line(file_id,lGrow          )
+    call parse_line(file_id,lCoag          )
     close(file_id)
    
     ! Convert VMRs from ppbv to v/v
@@ -670,6 +679,16 @@ module sect_aux_mod
 
     ! Convert end time from hours to seconds
     t_stop = t_stop * 3600
+
+    ! Only use implicit coag if coag is actually on
+    If (.not.LCoag) Then
+       coag_str = 'OFF'
+       limplicit_coag = .False.
+    Else If (.not.LImplicit_Coag) Then
+       coag_str = 'EXPLICIT'
+    Else
+       coag_str = 'IMPLICIT'
+    End If
 
     ! For the user... 
     If (LDebug) Then
@@ -687,7 +706,9 @@ module sect_aux_mod
       Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'T range (K)', T_K_Min, T_K_Max
       Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'P range (hPa)', p_hPa_Min, p_hPa_Max
       Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'H2SO4 range (ppbv)', vvH2SO4_Min*1.0e9, vvH2SO4_Max*1.0e9
-      Write(*,'(a30," : ",L1)'               ) 'Use implicit coag.',LImplicit_Coag
+      Write(*,'(a30," : ",L1)'               ) 'Nucleation', LNuc
+      Write(*,'(a30," : ",L1)'               ) 'Growth', LGrow
+      Write(*,'(a30," : ",a )'               ) 'Coagulation',trim(coag_str)
       Write(*,'(a30," : ",L1)'               ) 'Show debug output', LDebug
     End If
   end subroutine read_input

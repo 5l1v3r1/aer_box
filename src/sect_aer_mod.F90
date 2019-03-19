@@ -479,6 +479,7 @@ CONTAINS
                          vvSO4_Arr,Sfc_Ten_Arr,vvH2O_Vec,&
                          vvH2SO4_Vec,T_K_Vec,p_hPa_Vec,&
                          ndens_Vec,ts_sec,ts_coag,&
+                         LAER_Nuc,LAER_Grow,LAER_Coag,&
                          LAER_Coag_Imp,RC)
     
     integer, intent(in)     :: n_boxes
@@ -531,20 +532,15 @@ CONTAINS
     Real(fp)                :: S_Start, S_End
 
     ! Logicals
-    logical                 :: LAer_Nuc
-    logical                 :: LAer_Grow
-    logical                 :: LAer_Coag
+    logical, intent(in)     :: LAer_Nuc
+    logical, intent(in)     :: LAer_Grow
+    logical, intent(in)     :: LAer_Coag
     logical                 :: Run_Micro
 
     ! Fake locations
     I = 1
     J = 1
     L = 1
-
-    ! Enable all processes
-    LAer_Nuc  = .True.
-    LAer_Grow = .True.
-    LAer_Coag = .True.
 
     Run_Micro = (LAer_Nuc.or.LAer_Grow.or.LAer_Coag)
 

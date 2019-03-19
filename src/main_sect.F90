@@ -16,6 +16,7 @@
      integer               :: dt_output, t_next_output
      integer               :: output_idx
      logical               :: LDebug, LImplicit_Coag
+     logical               :: LNuc, LGrow, LCoag
 
      ! Simulation variables
      real(fp), allocatable  :: T_K_Vec(:), p_hPa_Vec(:), nDens_Vec(:)
@@ -41,7 +42,9 @@
         dt_coag,t_start,t_stop,n_bins,n_boxes,&
         output_file,T_K_Min,T_K_Max,p_hPa_min,p_hPa_max,&
         vvH2SO4_min,vvH2SO4_max,vvH2O_Init,vvSO2_Init,&
+        LImplicit_Coag,LDebug,LNuc,LGrow,LCoag,&
         LImplicit_Coag,LDebug,rc)
+        rc)
      if (rc.ne.0) Then
        Call error_stop('Failed to read input file','main',rc)
      End If
