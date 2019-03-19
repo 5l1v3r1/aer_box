@@ -477,7 +477,7 @@ CONTAINS
 #if defined( MDL_BOX )
   subroutine do_sect_aer(n_boxes,aWP_Arr,aDen_Arr,&
                          vvSO4_Arr,Sfc_Ten_Arr,vvH2O_Vec,&
-                         vvH2SO4_Vec,T_K_Vec,p_hPa_Vec,&
+                         vvH2SO4_Vec,rWet_Arr,T_K_Vec,p_hPa_Vec,&
                          ndens_Vec,ts_sec,ts_coag,&
                          LAER_Nuc,LAER_Grow,LAER_Coag,&
                          LAER_Coag_Imp,RC)
@@ -486,6 +486,7 @@ CONTAINS
     real(fp), intent(inout) :: aWP_Arr     (n_boxes,n_aer_bin)
     real(fp), intent(inout) :: aDen_Arr    (n_boxes,n_aer_bin)
     real(fp), intent(inout) :: vvSO4_Arr   (n_boxes,n_aer_bin)
+    real(fp), intent(inout) :: rWet_Arr    (n_boxes,n_aer_bin)
     real(fp), intent(inout) :: Sfc_Ten_Arr (n_boxes,n_aer_bin)
     real(fp), intent(inout) :: vvH2O_Vec   (n_boxes)
     real(fp), intent(inout) :: vvH2SO4_Vec (n_boxes)
@@ -627,6 +628,7 @@ CONTAINS
        aWP_Arr    (I_Box,:) = aWP_Box(:)
        aDen_Arr   (I_Box,:) = aDen_Box(:)
        vvSO4_Arr  (I_Box,:) = vvSO4_Box(:)
+       rWet_Arr   (I_Box,:) = rWet(:)
     End Do
 
     RC = 0

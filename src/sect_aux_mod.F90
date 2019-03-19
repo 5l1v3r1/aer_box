@@ -18,7 +18,7 @@ module sect_aux_mod
 
   contains
 
-  subroutine write_state(n_bins,n_expt,t_now,i_time,T_K,p_hPa,ndens,vvH2O,vvH2SO4,vvSO4,out_id,out_file,write_header,write_data,box_id,rc)
+  subroutine write_state(n_bins,n_expt,t_now,i_time,T_K,p_hPa,ndens,vvH2O,vvH2SO4,vvSO4,rWet,out_id,out_file,write_header,write_data,box_id,rc)
   ! Write the current state to an output file (ASCII for now)
   integer,                              intent(inout) :: out_id
   integer,                              intent(in   ) :: n_bins
@@ -33,6 +33,7 @@ module sect_aux_mod
   real(fp),           optional, target, intent(in   ) :: vvH2O(n_expt)
   real(fp),           optional, target, intent(in   ) :: vvH2SO4(n_expt)
   real(fp),           optional, target, intent(in   ) :: vvSO4(n_expt,n_bins)
+  real(fp),           optional, target, intent(in   ) :: rWet(n_expt,n_bins)
   logical,            optional,         intent(in   ) :: write_header
   logical,            optional,         intent(in   ) :: write_data
   integer,            optional,         intent(in   ) :: box_id(n_expt)
@@ -47,6 +48,7 @@ module sect_aux_mod
   integer                      :: idx_var_time
   integer                      :: idx_var_expt_id
   integer                      :: idx_var_spc(n_bins+n_gas)
+  integer                      :: idx_var_rwet(n_bins)
   integer                      :: idx_var_env(n_env)
   integer                      :: idx_var, idx_dim
   character(len=NF90_MAX_NAME) :: dim_names_long
@@ -166,11 +168,20 @@ module sect_aux_mod
       Return
     End If
 
-    ! Aerosol bins
+    ! Properties by bin - v/v and wet radius
     do i_bin=1,n_bins
       write(curr_var_name,'(a,I0.3)') 'spc_bin', i_bin
       RC = NF90_DEF_VAR(ncid=out_id,name=trim(curr_var_name),xtype=NF90_FLOAT,&
           dimids=(/idx_dim_expt_id,idx_dim_time/),varid=idx_var_spc(n_gas+i_bin))
+      If (RC.ne.0) Then
+        Write(err_msg,'(3a,I4)') 'Failed to create variable: ', trim(curr_var_name), &
+          '. Error code: ', RC
+        Call Debug_Msg(trim(err_msg))
+        Return
+      End If
+      write(curr_var_name,'(a,I0.3)') 'rwet_bin', i_bin
+      RC = NF90_DEF_VAR(ncid=out_id,name=trim(curr_var_name),xtype=NF90_FLOAT,&
+          dimids=(/idx_dim_expt_id,idx_dim_time/),varid=idx_var_rwet(i_bin))
       If (RC.ne.0) Then
         Write(err_msg,'(3a,I4)') 'Failed to create variable: ', trim(curr_var_name), &
           '. Error code: ', RC
@@ -477,6 +488,66 @@ module sect_aux_mod
       End If
     End Do
 
+    ! Loop over the other aerosol properties
+    Do i_bin = 1, n_bins
+      idx_var = idx_var_rwet(i_bin)
+      write(curr_var_name,'(a,I0.3)') 'rwet_bin', i_bin
+      write(var_long_name,'(a,I3,a,I3)') 'Wet radius for aerosol bin ',i_bin,' of ',n_bins
+      write(var_short_name,'(a,I0.3)') 'rwet_bin',i_bin
+      curr_att_name='standard_name'
+      att_str = var_short_name
+      RC = NF90_PUT_ATT(ncid=out_id, varid=idx_var, &
+        name=trim(curr_att_name),values=Trim(att_str))
+      If (RC.ne.0) Then
+        Write(err_msg,'(5a,I4)') 'Failed to write attribute: ', &
+          trim(curr_att_name), ' for variable ', Trim(curr_var_name),&
+          '. Error code: ', RC
+        Call Debug_Msg(trim(err_msg))
+        Return
+      End If
+      curr_att_name='long_name'
+      att_str = var_long_name
+      RC = NF90_PUT_ATT(ncid=out_id, varid=idx_var, &
+        name=trim(curr_att_name),values=Trim(att_str))
+      If (RC.ne.0) Then
+        Write(err_msg,'(5a,I4)') 'Failed to write attribute: ', &
+          trim(curr_att_name), ' for variable ', Trim(curr_var_name),&
+          '. Error code: ', RC
+        Call Debug_Msg(trim(err_msg))
+        Return
+      End If
+      curr_att_name='units'
+      att_str = 'um'
+      RC = NF90_PUT_ATT(ncid=out_id, varid=idx_var, &
+        name=trim(curr_att_name),values=Trim(att_str))
+      If (RC.ne.0) Then
+        Write(err_msg,'(5a,I4)') 'Failed to write attribute: ', &
+          trim(curr_att_name), ' for variable ', Trim(curr_var_name),&
+          '. Error code: ', RC
+        Call Debug_Msg(trim(err_msg))
+        Return
+      End If
+      curr_att_name='_FillValue'
+      RC = NF90_PUT_ATT(ncid=out_id, varid=idx_var, &
+        name=trim(curr_att_name),values=-1.0e+10)
+      If (RC.ne.0) Then
+        Write(err_msg,'(5a,I4)') 'Failed to write attribute: ', &
+          trim(curr_att_name), ' for variable ', Trim(curr_var_name),&
+          '. Error code: ', RC
+        Call Debug_Msg(trim(err_msg))
+        Return
+      End If
+      curr_att_name='missing_value'
+      RC = NF90_PUT_ATT(ncid=out_id, varid=idx_var, &
+        name=trim(curr_att_name),values=-1.0e+10)
+      If (RC.ne.0) Then
+        Write(err_msg,'(5a,I4)') 'Failed to write attribute: ', &
+          trim(curr_att_name), ' for variable ', Trim(curr_var_name),&
+          '. Error code: ', RC
+        Call Debug_Msg(trim(err_msg))
+        Return
+      End If
+    End Do
     ! Leave define mode
     RC = NF90_ENDDEF(ncid=out_id)
     If (RC.ne.0) Then
@@ -514,8 +585,8 @@ module sect_aux_mod
       Return
     End If
     ! Assume that the calling routine knows the output time
-    Do k=1,(n_bins + n_gas + n_env)
-      If (k <= (n_bins + n_gas)) Then
+    Do k=1,((n_bins*2) + n_gas + n_env)
+      If (k <= ((n_bins*2) + n_gas)) Then
         if (k == 1) then
           ptr_1D_r8 => vvH2O
           curr_var_name = 'spc_H2O'
@@ -527,12 +598,15 @@ module sect_aux_mod
         else if (k == 3) then
           ptr_1D_r8 => vvH2SO4
           curr_var_name = 'spc_H2SO4'
+        else if (k > (n_bins + n_gas)) then
+          ptr_1D_r8 => rWet(:,k-(n_gas+n_bins))
+          write(curr_var_name,'(a,I0.3)') 'rwet_bin', k-(n_gas+n_bins)
         else
           ptr_1D_r8 => vvSO4(:,k-n_gas)
           write(curr_var_name,'(a,I0.3)') 'spc_bin', k-n_gas
         end if
       Else
-        j = k - (n_bins + n_gas)
+        j = k - ((n_bins*2) + n_gas)
         if (j == 1) then
            ptr_1d_r8 => T_K
            curr_var_name = 'T'
@@ -557,7 +631,6 @@ module sect_aux_mod
         call debug_msg('Could not allocated Var_2D_R4 in Write_State')
         return
       end if
-      !var_2d_r4(:,1) = Real(ptr_1d_r8(:),Kind=f4)
       Do J=1,n_expt
         var_2d_r4(J,1) = Real(ptr_1d_r8(j),Kind=f4)
       End Do

@@ -25,6 +25,7 @@
      real(fp), allocatable  :: aDen_Arr(:,:)
      real(fp), allocatable  :: aWP_Arr(:,:)
      real(fp), allocatable  :: vvSO4_Arr(:,:)
+     real(fp), allocatable  :: rWet_Arr(:,:)
 
      ! Output settings
      integer :: output_fID, idx_output
@@ -132,6 +133,13 @@
      end if
      Sfc_Ten_Arr(:,:) = 0.0e+0_fp
 
+     allocate(rWet_Arr(n_boxes,n_bins),stat=as)
+     if (as.ne.0) then
+        write(*,*) 'Failed to allocate rWet_Arr'
+        stop
+     end if
+     rWet_Arr(:,:) = 0.0e+0_fp
+
      ! Set initial conditions
      if (n_boxes.eq.1) then
        T_K_vec(1)     = (T_K_min     + T_K_max    )/2.0
@@ -156,6 +164,11 @@
 
      ! All start with no aerosol
      vvSO4_Arr(:,:) = 0.0e-9_fp
+
+     ! Initialize wet radii = dry radii
+     do k = 1, n_boxes
+        rWet_Arr(k,:) = aer_dry_rad(:)
+     end do
 
      If (vvAero_Init > 0.0e+0_fp) Then
         ! Calculate the volume in each bin then just scale
@@ -209,7 +222,7 @@
      ! Write the initial state
      idx_output = 1
      call write_state(write_data=.True.,t_now=t_start,T_K=T_K_Vec,&
-       p_hPa=p_hPa_Vec,ndens=ndens_Vec,vvH2O=vvH2O_Vec,&
+       p_hPa=p_hPa_Vec,ndens=ndens_Vec,vvH2O=vvH2O_Vec,rWet=rWet_Arr,&
        vvH2SO4=vvH2SO4_Vec,vvSO4=vvSO4_Arr,i_time=idx_output,&
        n_expt=n_boxes,n_bins=n_bins,out_id=output_fID,rc=rc)
      if (rc.ne.0) then
@@ -237,7 +250,7 @@
         ! Simulate dt_main
         call do_sect_aer(n_boxes,aWP_Arr,aDen_Arr,&
                          vvSO4_Arr,Sfc_Ten_Arr,vvH2O_Vec,&
-                         vvH2SO4_Vec,T_K_Vec,p_hPa_Vec,&
+                         vvH2SO4_Vec,rWet_Arr,T_K_Vec,p_hPa_Vec,&
                          ndens_Vec,dt_main,dt_coag,&
                          lnuc, lgrow, lcoag,&
                          limplicit_coag,RC)
@@ -251,7 +264,7 @@
            end if
            idx_output = idx_output + 1
            call write_state(write_data=.True.,t_now=t_sim,T_K=T_K_Vec,&
-             p_hPa=p_hPa_Vec,ndens=ndens_Vec,vvH2O=vvH2O_Vec,&
+             p_hPa=p_hPa_Vec,ndens=ndens_Vec,vvH2O=vvH2O_Vec,rWet=rWet_Arr,&
              vvH2SO4=vvH2SO4_Vec,vvSO4=vvSO4_Arr,i_time=idx_output,&
              n_expt=n_boxes,n_bins=n_bins,out_id=output_fID,rc=rc)
            if (rc.ne.0) then
@@ -281,6 +294,7 @@
      if (allocated(awp_arr    )) deallocate(awp_arr)
      if (allocated(aden_arr   )) deallocate(aden_arr)
      if (allocated(vvso4_arr  )) deallocate(vvso4_arr)
+     if (allocated(rWet_Arr   )) deallocate(rWet_Arr )
 
      write(*,*) 'Simulation complete.'
 
