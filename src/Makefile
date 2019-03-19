@@ -5,9 +5,12 @@ NC_INC_CMD  := -I$(shell nc-config --includedir) -I$(shell nf-config --includedi
 LINK :=$(NC_LINK_CMD)
 INCLUDE :=$(NC_INC_CMD)
 
-#FC = gfortran
+ifeq ($(FC),mpif90)
+  TEMP_VAR := $(shell mpif90 -show ) 
+  FC := $(word 1,$(TEMP_VAR))
+endif
 ifeq ($(FC),)
-  FC = ifort
+  FC := ifort
 endif
 ifeq ($(FC),ifort)
   FCFLAGS := -cpp -w -auto -noalign -fautomatic -DMDL_BOX -DUSE_REAL8 -traceback
