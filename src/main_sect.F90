@@ -43,7 +43,7 @@
      real(fp), allocatable  :: vvSO4_Init(:)
      real(fp)               :: vvAero_Init, rAero_Init, gsdAero_Init
      real(fp)               :: r_min, r_max, ln_gsd, aero_factor
-     real(fp)               :: r_median, erf_next, erf_last
+     real(fp)               :: r_median, erf_next, erf_last, rv_median
 
      write(*,*) 'Initializing simulation.'
 
@@ -170,13 +170,15 @@
         aero_factor = 1.0 / (sqrt(2.0) * ln_gsd)
         ! Assume we were given the number-weighted mode radius
         r_median = rAero_Init * exp(0.5 * ln_gsd * ln_gsd)
+        ! Need volume-weighted median
+        rv_median = r_median * exp(3.0 * ln_gsd * ln_gsd)
         ! Get the lower bound of bin 1 based on a hypothetical bin 0
         r_max = (aer_dry_rad(1)/(aer_Vrat ** (1.0/3.0))) * (2.0 * aer_Vrat / (1.0 + aer_Vrat))**(1.0/3.0)
-        erf_next = erf(log(r_max/r_median)*aero_factor)
+        erf_next = erf(log(r_max/rv_median)*aero_factor)
         do k=1,n_bins
            erf_last = erf_next
            r_max = aer_dry_rad(k) * (2.0 * aer_Vrat / (1.0 + aer_Vrat))**(1.0/3.0)
-           erf_next = erf(log(r_max/r_median)*aero_factor)
+           erf_next = erf(log(r_max/rv_median)*aero_factor)
            vvSO4_Init(k) = 0.5 * (erf_next - erf_last)
         end do
         ! Scale up the total
