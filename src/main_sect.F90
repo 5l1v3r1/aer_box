@@ -35,6 +35,15 @@
      real(fp)               :: p_hPa_min,   p_hPa_max
      real(fp)               :: vvH2SO4_min, vvH2SO4_max
      real(fp)               :: vvH2O_Init,  vvSO2_Init
+     
+     ! H2SO4 formation rates
+     real(fp)               :: H2SO4_per_day, H2SO4_per_step
+
+     ! Initial population
+     real(fp), allocatable  :: vvSO4_Init(:)
+     real(fp)               :: vvAero_Init, rAero_Init, gsdAero_Init
+     real(fp)               :: r_min, r_max, ln_gsd, aero_factor
+     real(fp)               :: r_median, erf_next, erf_last
 
      write(*,*) 'Initializing simulation.'
 
@@ -43,13 +52,16 @@
         output_file,T_K_Min,T_K_Max,p_hPa_min,p_hPa_max,&
         vvH2SO4_min,vvH2SO4_max,vvH2O_Init,vvSO2_Init,&
         LImplicit_Coag,LDebug,LNuc,LGrow,LCoag,&
-        LImplicit_Coag,LDebug,rc)
+        H2SO4_per_day,vvAero_Init,rAero_Init,gsdAero_Init,&
         rc)
      if (rc.ne.0) Then
        Call error_stop('Failed to read input file','main',rc)
      End If
 
      if (dt_output < dt_main) dt_output = dt_main
+
+     ! Calculate H2SO4 formation rate
+     H2SO4_per_step = H2SO4_per_day * real(dt_main,fp) / (24.0e+0_fp*3600.0e+0_fp)
 
      call init_sect_aer(n_bins,rc)
      if (rc.ne.0) then
@@ -145,6 +157,40 @@
      ! All start with no aerosol
      vvSO4_Arr(:,:) = 0.0e-9_fp
 
+     If (vvAero_Init > 0.0e+0_fp) Then
+        ! Calculate the volume in each bin then just scale
+        allocate(vvSO4_Init(n_bins),stat=as)
+        if (as.ne.0) then
+           write(*,*) 'Failed to allocate vvSO4_Init'
+           stop
+        end if
+        vvSO4_Init(:) = 0.0e+0_fp
+        ! Constant factor
+        ln_gsd = log(gsdAero_Init)
+        aero_factor = 1.0 / (sqrt(2.0) * ln_gsd)
+        ! Assume we were given the number-weighted mode radius
+        r_median = rAero_Init * exp(0.5 * ln_gsd * ln_gsd)
+        ! Get the lower bound of bin 1 based on a hypothetical bin 0
+        r_max = (aer_dry_rad(1)/(aer_Vrat ** (1.0/3.0))) * (2.0 * aer_Vrat / (1.0 + aer_Vrat))**(1.0/3.0)
+        erf_next = erf(log(r_max/r_median)*aero_factor)
+        do k=1,n_bins
+           erf_last = erf_next
+           r_max = aer_dry_rad(k) * (2.0 * aer_Vrat / (1.0 + aer_Vrat))**(1.0/3.0)
+           erf_next = erf(log(r_max/r_median)*aero_factor)
+           vvSO4_Init(k) = 0.5 * (erf_next - erf_last)
+        end do
+        ! Scale up the total
+        If (sum(vvSO4_Init) > 0.0) Then
+           vvSO4_Init(:) = vvAero_Init * vvSO4_Init(:) / sum(vvSO4_Init)
+        Else
+           write(*,*) 'Non-positive initial aerosol distribution?'
+           stop 20
+        End If
+        do k=1,n_boxes
+           vvSO4_Arr(k,:) = vvSO4_Init(:)
+        end do
+     End If
+
      ! Recalculate surface tension, weight pcg, and density on first step
      Sfc_Ten_Arr(:,:) = 0.0e+0_fp
      aWP_Arr    (:,:) = 0.0e+0_fp
@@ -181,17 +227,26 @@
      t_sim = t_start
      t_next_output = t_start + dt_output
      do while ( t_sim < t_stop )
+
+        ! Add any H2SO4 being produced
+        If (H2SO4_per_day > 0.0e+0_fp) &
+        vvH2SO4_Vec(:) = vvH2SO4_Vec(:) + H2SO4_per_step
+
         ! Simulate dt_main
         call do_sect_aer(n_boxes,aWP_Arr,aDen_Arr,&
                          vvSO4_Arr,Sfc_Ten_Arr,vvH2O_Vec,&
                          vvH2SO4_Vec,T_K_Vec,p_hPa_Vec,&
                          ndens_Vec,dt_main,dt_coag,&
+                         lnuc, lgrow, lcoag,&
                          limplicit_coag,RC)
         ! Advance time
         t_sim = t_sim + dt_main
 
         ! Perform output
         if ((t_sim >= t_stop).or.(t_sim >= t_next_output)) then
+           if (ldebug) then
+              write(*,'(a,I10)') 'Writing data for t = ', t_sim
+           end if
            idx_output = idx_output + 1
            call write_state(write_data=.True.,t_now=t_sim,T_K=T_K_Vec,&
              p_hPa=p_hPa_Vec,ndens=ndens_Vec,vvH2O=vvH2O_Vec,&

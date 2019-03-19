@@ -609,8 +609,8 @@ module sect_aux_mod
         output_file,T_K_Min,T_K_Max,p_hPa_min,p_hPa_max,&
         vvH2SO4_min,vvH2SO4_max,vvH2O_Init,vvSO2_Init,&
         LImplicit_Coag,LDebug,LNuc,LGrow,LCoag,&
-        LImplicit_Coag,LDebug,rc)
-        rc)
+        H2SO4_Per_Day,vvAero_Init,rAero_Init,&
+        gsdAero_Init,rc)
 
     character(len=*),   intent(in   ) :: in_file
     integer,            intent(out  ) :: dt_main
@@ -626,6 +626,10 @@ module sect_aux_mod
     real(fp),           intent(out  ) :: vvH2SO4_Min, vvH2SO4_Max
     real(fp),           intent(out  ) :: vvH2O_Init
     real(fp),           intent(out  ) :: vvSO2_Init
+    real(fp),           intent(out  ) :: H2SO4_per_day
+    real(fp),           intent(out  ) :: vvAero_Init
+    real(fp),           intent(out  ) :: rAero_Init
+    real(fp),           intent(out  ) :: gsdAero_Init
     logical,            intent(out  ) :: LImplicit_Coag
     logical,            intent(out  ) :: LDebug
     logical,            intent(out  ) :: LNuc
@@ -649,33 +653,39 @@ module sect_aux_mod
 
     ! Use simple fixed formatting
     t_start = 0
-    call parse_line(file_id,t_stop      )
-    call parse_line(file_id,dt_main     )
-    call parse_line(file_id,dt_coag     )
-    call parse_line(file_id,dt_output   )
-    call parse_line(file_id,n_bins      )
-    call parse_line(file_id,n_boxes     )
-    call parse_line(file_id,output_file )
-    call parse_line(file_id,vvH2O_Init  )
-    call parse_line(file_id,vvSO2_Init  )
-    call parse_line(file_id,T_K_Min     )
-    call parse_line(file_id,T_K_Max     )
-    call parse_line(file_id,p_hPa_Min   )
-    call parse_line(file_id,p_hPa_Max   )
-    call parse_line(file_id,vvH2SO4_Min )
-    call parse_line(file_id,vvH2SO4_Max )
-    call parse_line(file_id,limplicit_coag)
-    call parse_line(file_id,ldebug      )
+    call parse_line(file_id,t_stop         )
+    call parse_line(file_id,dt_main        )
+    call parse_line(file_id,dt_coag        )
+    call parse_line(file_id,dt_output      )
+    call parse_line(file_id,n_bins         )
+    call parse_line(file_id,n_boxes        )
+    call parse_line(file_id,output_file    )
+    call parse_line(file_id,vvH2O_Init     )
+    call parse_line(file_id,vvSO2_Init     )
+    call parse_line(file_id,H2SO4_per_day  )
+    call parse_line(file_id,T_K_Min        )
+    call parse_line(file_id,T_K_Max        )
+    call parse_line(file_id,p_hPa_Min      )
+    call parse_line(file_id,p_hPa_Max      )
+    call parse_line(file_id,vvH2SO4_Min    )
+    call parse_line(file_id,vvH2SO4_Max    )
+    call parse_line(file_id,vvAero_Init    )
+    call parse_line(file_id,rAero_Init     )
+    call parse_line(file_id,gsdAero_Init   )
     call parse_line(file_id,lNuc           )
     call parse_line(file_id,lGrow          )
     call parse_line(file_id,lCoag          )
+    call parse_line(file_id,limplicit_coag )
+    call parse_line(file_id,ldebug         )
     close(file_id)
    
     ! Convert VMRs from ppbv to v/v
-    vvH2SO4_Min = vvH2SO4_Min * 1.0e-9
-    vvH2SO4_Max = vvH2SO4_Max * 1.0e-9
-    vvSO2_Init = vvSO2_Init * 1.0e-9
-    vvH2O_Init = vvH2O_Init * 1.0e-9
+    vvH2SO4_Min   = vvH2SO4_Min   * 1.0e-9
+    vvH2SO4_Max   = vvH2SO4_Max   * 1.0e-9
+    vvSO2_Init    = vvSO2_Init    * 1.0e-9
+    vvH2O_Init    = vvH2O_Init    * 1.0e-9
+    vvAero_Init   = vvAero_Init   * 1.0e-9
+    H2SO4_per_day = H2SO4_per_day * 1.0e-9
 
     ! Convert end time from hours to seconds
     t_stop = t_stop * 3600
@@ -703,6 +713,10 @@ module sect_aux_mod
       Write(*,'(a30," : ",I10)'    ) 'Number of boxes', n_boxes
       Write(*,'(a30," : ",F10.2)'  ) 'H2O VMR (ppbv)', vvH2O_Init*1.0e9
       Write(*,'(a30," : ",F10.2)'  ) 'SO2 VMR (ppbv)', vvSO2_Init*1.0e9
+      Write(*,'(a30," : ",F10.2)'  ) 'Initial aerosol (ppbv)', vvAero_Init*1.0e9
+      Write(*,'(a30," : ",F10.2)'  ) 'Initial mode radius (um)', rAero_Init
+      Write(*,'(a30," : ",F10.2)'  ) 'Initial geom. std. dev.', gsdAero_Init
+      Write(*,'(a30," : ",F10.2)'  ) 'H2SO4 prodn rate (ppbv/day)', H2SO4_per_day*1.0e9
       Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'T range (K)', T_K_Min, T_K_Max
       Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'P range (hPa)', p_hPa_Min, p_hPa_Max
       Write(*,'(a30," : ",F10.2,"-",F10.2)'  ) 'H2SO4 range (ppbv)', vvH2SO4_Min*1.0e9, vvH2SO4_Max*1.0e9
