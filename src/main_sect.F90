@@ -186,7 +186,8 @@
         ! Need volume-weighted median
         rv_median = r_median * exp(3.0 * ln_gsd * ln_gsd)
         ! Get the lower bound of bin 1 based on a hypothetical bin 0
-        r_max = (aer_dry_rad(1)/(aer_Vrat ** (1.0/3.0))) * (2.0 * aer_Vrat / (1.0 + aer_Vrat))**(1.0/3.0)
+        !r_max = (aer_dry_rad(1)/(aer_Vrat ** (1.0/3.0))) * (2.0 * aer_Vrat / (1.0 + aer_Vrat))**(1.0/3.0)
+        r_max = aer_dry_rad(1) * (2.0 / (1.0 + aer_Vrat))**(1.0/3.0)
         erf_next = erf(log(r_max/rv_median)*aero_factor)
         do k=1,n_bins
            erf_last = erf_next
