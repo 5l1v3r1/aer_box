@@ -57,7 +57,8 @@ module sect_aer_data_mod
 contains
 
 #if defined( MDL_BOX )
-  subroutine AER_allocate_ini(RC)
+  subroutine AER_allocate_ini(n_boxes, RC)
+    integer, intent(in)  :: n_boxes
     integer, intent(out) :: RC
 #else
   subroutine AER_allocate_ini(am_I_Root,Input_Opt,State_Chm,RC)
@@ -81,7 +82,7 @@ contains
     rc = 0
 
 #if defined( MDL_BOX )
-    iipar = 1
+    iipar = n_boxes
     jjpar = 1
     llpar = 1
 #endif

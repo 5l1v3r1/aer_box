@@ -580,7 +580,7 @@ CONTAINS
           air_dens = ndens_vec(I_Box)
 
           ! Calculate coagulation kernel
-          CK_Box => ck(I,J,L,:,:)
+          CK_Box => ck(I_Box,1,1,:,:)
           If (LAER_coag) &
           Call Cal_Coag_Kernel(CK_Box,aWP_Box,aDen_Box,T_K,P_hPa)          
 
@@ -778,16 +778,16 @@ CONTAINS
   end subroutine init_sect_aer
 #endif
 #if defined( MDL_BOX )
-  subroutine init_sect_aer( n_bins, RC )
+  subroutine init_sect_aer( n_boxes, n_bins, RC )
 
     USE sect_aer_data_mod,    Only : aer_allocate_ini
-    integer, intent(in) :: n_bins
+    integer, intent(in) :: n_bins, n_boxes
     integer, optional, intent(out) :: RC
     integer             :: k, RC_temp, AS
     character(len=255)  :: err_msg
  
     n_aer_bin = n_bins 
-    Call AER_allocate_ini(RC_temp)
+    Call AER_allocate_ini(n_boxes,RC_temp)
     If (RC_temp.ne.0) Then
        If (present(RC)) RC = rc_temp
        Write(err_msg,'(a,I4)') 'Bad allocation exit code: ', RC_temp

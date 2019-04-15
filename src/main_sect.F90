@@ -64,7 +64,7 @@
      ! Calculate H2SO4 formation rate
      H2SO4_per_step = H2SO4_per_day * real(dt_main,fp) / (24.0e+0_fp*3600.0e+0_fp)
 
-     call init_sect_aer(n_bins,rc)
+     call init_sect_aer(n_boxes,n_bins,rc)
      if (rc.ne.0) then
         write(*,*) 'BAD INITIALIZATION'
         stop 20
