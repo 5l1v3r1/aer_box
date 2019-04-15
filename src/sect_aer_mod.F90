@@ -2571,6 +2571,7 @@ CONTAINS
     real(dp) :: s,f,al,total1,total2,tmin,mass_error
 
     integer :: i_limit
+    real(dp) :: t_rem
     
     !=======================================================================
     ! AER_COAGULATION begins here!
@@ -2582,31 +2583,39 @@ CONTAINS
     an =an0
     if (sum(an)<=0.) return
     total1=sum(an0*aer_molec)
-    dn = 0._dp 
-    DO I=1,n_aer_bin-1
-       DO J=1,I
-          S=1.
-          IF (I.EQ.J) S=0.5 
-          F=aer_mass(J)/aer_mass(I) !eth_af_dryS
-          AL=an(I)*an(J)*S*ck_box(I,J)
-          DN(J)=DN(J)-AL
-          DN(I)=DN(I)-AL*F/(aer_Vrat-1.)
-          DN(I+1)=DN(I+1)+AL*F/(aer_Vrat-1.)
+
+    t_rem = dt
+    do while (t_rem > 1.0e-3_dp)
+       dn = 0._dp 
+       DO I=1,n_aer_bin-1
+          DO J=1,I
+             S=1.
+             IF (I.EQ.J) S=0.5 
+             F=aer_mass(J)/aer_mass(I) !eth_af_dryS
+             AL=an(I)*an(J)*S*ck_box(I,J)
+             DN(J)=DN(J)-AL
+             DN(I)=DN(I)-AL*F/(aer_Vrat-1.)
+             DN(I+1)=DN(I+1)+AL*F/(aer_Vrat-1.)
+          ENDDO
        ENDDO
-    ENDDO
-    tmin=dt
-    !i_limit = 0
-    do k=1,n_aer_bin
-       if(-dn(k)*dt > 0.9*an(k)) tmin=min(tmin,-0.9*an(k)/dn(k))
-       !if(-dn(k)*dt > 0.9*an(k)) then
-       !   tmin=min(tmin,-0.9*an(k)/dn(k))
-       !   i_limit = k
+       tmin = t_rem
+       !i_limit = 0
+       do k=1,n_aer_bin
+          if(-dn(k)*t_rem > 0.9*an(k)) tmin=min(tmin,-0.9*an(k)/dn(k))
+          !if(-dn(k)*dt > 0.9*an(k)) then
+          !   tmin=min(tmin,-0.9*an(k)/dn(k))
+          !   i_limit = k
+          !end if
+       enddo
+       t_rem = t_rem - tmin
+
+       ! HACK
+       !t_rem = 0.0d0
+       !if (i_limit > 0) then
+       !  write(*,'(a,I3,a,F12.7)') 'LIMITED by bin ', i_limit, ' to ', tmin
        !end if
-    enddo
-    !if (i_limit > 0) then
-    !  write(*,'(a,I3,a,F12.7)') 'LIMITED by bin ', i_limit, ' to ', tmin
-    !end if
-    an=max(0.,an+dn*tmin)
+       an=max(0.,an+dn*tmin)
+    end do
     total2=sum(an*aer_molec)
     mass_error = abs((total2-total1)/total1)
     if (mass_error > 1E-3 ) then 
