@@ -245,7 +245,7 @@ CONTAINS
     LAER_sed  = Input_Opt%LAER_sed
 
     ! Implicit coagulation?
-    LAER_coag_imp = .True.
+    LAER_coag_imp = .False.
 
     If (am_I_Root) Then
        write(*,*) 'Running Do_Sect_Aer'
@@ -2513,7 +2513,7 @@ CONTAINS
     total2=sum(an*aer_molec)
 
     If (total2.ne.total2) then
-      call Error_Stop('NaN in coagulation','AER_coagulation_implicit',10)
+      call Error_Stop('NaN in coagulation','AER_coagulation_implicit')
     End If
 
     mass_error = abs((total2-total1)/total1)
