@@ -549,6 +549,14 @@ CONTAINS
     NAStep = NINT(dble(ts_sec)/dble(ts_coag))
     dt_substep = dble(ts_sec)/dble(NAStep)
 
+!$OMP PARALLEL  DO                                               &
+!$OMP DEFAULT(  SHARED                                         ) &
+!$OMP PRIVATE(  I_Box, vvH2O, vvH2SO4, ST_Box, aWP_Box         ) &
+!$OMP PRIVATE(  vvSO4_Box_0, vvH2SO4_0, T_K, p_hPa             ) &
+!$OMP PRIVATE(  air_dens,   CK_Box,   BVP_Box,    rWet         ) &
+!$OMP PRIVATE(  box_grow_d, box_wp_d, box_nrate_d,fijk_Box     ) &
+!$OMP PRIVATE(  s_start,    s_end,    RC                       ) &
+!$OMP SCHEDULE( DYNAMIC, 1                                     )
     Do I_Box=1,N_Boxes
        ! Copy properties into temporary variables
        vvH2O        = vvH2O_Vec  (I_Box)
@@ -630,6 +638,7 @@ CONTAINS
        vvSO4_Arr  (I_Box,:) = vvSO4_Box(:)
        rWet_Arr   (I_Box,:) = rWet(:)
     End Do
+!$OMP END PARALLEL DO
 
     RC = 0
   end subroutine do_sect_aer
