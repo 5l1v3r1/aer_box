@@ -1,5 +1,7 @@
 #undef AER_CONSTANT_WP
+#undef AER_PVH2SO4
 !#define AER_CONSTANT_WP
+!#define AER_PVH2SO4
 !------------------------------------------------------------------------------
 !                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
@@ -1712,6 +1714,8 @@ CONTAINS
     
     real(dp) :: aer_vol_wet(n_aer_bin), aer_r_wet(n_aer_bin)  !eth_af_dryS
 
+    real(dp) :: pv_old, wpp
+
     !=======================================================================
     ! AER_GROW begins here!
     !=======================================================================
@@ -1748,7 +1752,21 @@ CONTAINS
 
     nsize = n_aer_bin
     DO K=1,n_aer_bin
+#if defined( AER_PVH2SO4 )
+       ! Calculation in original code
+       wpp = 0.01 * aWP_Box(k)
+       fra = 18.*wpp/(18.*wpp+98.*(1.-wpp))
+       avgmolwt = fra*98.+(1.-fra)*18.
+       pv_old = avgmolwt/aDen_box(k)
+       pvh2so4 = pv_old
+#else
+       ! Calculation in SOCOL (Krieger et al 2000, 
+       ! "Measurement of the refractive indices of 
+       ! H2SO4–HNO3–H2O solutions to stratospheric 
+       ! temperatures")
        call pvolume_h2so4(temp,aWP_Box(k),pvh2so4)
+#endif
+
        RAD=aer_r_wet(K)*1.E-4
        VKNUD=EFF/RAD
        CORR=(1.3333+0.71/VKNUD)/(1.+1./VKNUD)
