@@ -557,7 +557,7 @@ CONTAINS
 !$OMP PRIVATE(  vvSO4_Box_0, vvH2SO4_0, T_K, p_hPa             ) &
 !$OMP PRIVATE(  air_dens,   CK_Box,   BVP_Box,    rWet         ) &
 !$OMP PRIVATE(  box_grow_d, box_wp_d, box_nrate_d,fijk_Box     ) &
-!$OMP PRIVATE(  s_start,    s_end,    RC                       ) &
+!$OMP PRIVATE(  s_start,    s_end,    RC, K, N                 ) &
 !$OMP SCHEDULE( DYNAMIC, 1                                     )
     Do I_Box=1,N_Boxes
        ! Copy properties into temporary variables
