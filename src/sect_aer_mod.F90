@@ -948,7 +948,7 @@ CONTAINS
     ! Get VMR of H2O in v/v
     h2o=max(epsilon(1._dp),H2O_vv)
     temp=max(190.15_dp,T_K)
-    temp=min(300._dp,T_K)
+    temp=min(300._dp,temp)
 
     ! Calculate weight % h2so4 in aerosols as fn of tmp
     ! and h2o partial pressure using parameterization of
@@ -996,7 +996,8 @@ CONTAINS
           y2=-176.95814097_dp*aw**(-0.36257048154_dp) &
               -90.469744201_dp*aw +267.45509988_dp
        end if
-       sulfmolal=y1+((T_K-190._dp)*(y2-y1)/70._dp)
+       !sulfmolal=y1+((T_K-190._dp)*(y2-y1)/70._dp)
+       sulfmolal=y1+((temp-190._dp)*(y2-y1)/70._dp)
        aWP_Box(k)=9800.*sulfmolal/(98.*sulfmolal+1000._dp)
 
        if (aWP_Box(k) .lt. 15._dp) then
