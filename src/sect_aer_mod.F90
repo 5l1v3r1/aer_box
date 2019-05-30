@@ -1369,9 +1369,15 @@ CONTAINS
 ! !LOCAL VARIABLES:
 !
     real(dp) :: ppacid
+    !real(dp), parameter ::      &
+    !          b1=1.01325e5_dp, &
+    !          b2=11.5_dp,  &
+    !          b3=1.0156e4_dp,  &
+    !          b4=0.38_dp/545._dp, &
+    !          tref=360.15_dp
     real(dp), parameter ::      &
               b1=1.01325e5_dp, &
-              b2=11.5_dp,  &
+              b2=11.695_dp,  &
               b3=1.0156e4_dp,  &
               b4=0.38_dp/545._dp, &
               tref=360.15_dp
@@ -1634,11 +1640,13 @@ CONTAINS
     do  J=1,NSIZE
        AMASS=aer_mass(J)/aWP_Box(J)/0.01
        XKN=FP/AR(J)
+       ! Kasten (1968) give 1.249, not 1.246 (SDE 2019-04-16)
        B=(1._dp/(6._dp*pi*VIS*AR(J)))* &
-         (1._dp+1.246_dp*XKN+0.42_dp*XKN*EXP(-0.87_dp/XKN))
+         (1._dp+1.249_dp*XKN+0.42_dp*XKN*EXP(-0.87_dp/XKN))
        D(J)=akb*T_K*B
        G(J)=SQRT(8._dp*akb*T_K/(pi*AMASS))
-       LB=2.546_dp*D(J)/G(J)
+       !LB=2.546_dp*D(J)/G(J)   ! Seinfeld and Pandis (2006)
+       LB=(2._dp/pi)*D(J)/G(J)  ! Jacobson (1999)
        AAA=(2._dp*AR(J)+LB)**3
        BBB=(4._dp*AR(J)*AR(J)+LB*LB)**(3./2.)
        DEL(J)=(1._dp/(6._dp*AR(J)*LB))*(AAA-BBB)-2._dp*AR(J)
@@ -1970,7 +1978,8 @@ CONTAINS
          return
       endif
       do k=1, n_aer_bin-1
-         rupper=aer_r_wet(k+1)!assume no nucleation in largest bin
+         !rupper=aer_r_wet(k+1)!assume no nucleation in largest bin
+         rupper = aer_r_wet(k) * (2.*aer_vrat/(1.+aer_vrat))**(1./3.)
          if (cluster_r*1.e4_dp .le. rupper) then
             dh2so4=min(n_rate*dt,h2so4)
             !dn=dh2so4*98._dp/(aer_vol_wet(k)*1e-12_dp*aden(i,j,k,krow)*awp(i,j,k,krow)*0.01_dp*Av)                
