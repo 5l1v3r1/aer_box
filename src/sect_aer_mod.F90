@@ -923,6 +923,8 @@ CONTAINS
 
     real(dp) :: aer_vol_wet(n_aer_bin), aer_r_wet(n_aer_bin) !eth_af_dryS
 
+    real(dp) :: pph2o_ref
+
     integer :: i,j,k,nsize
 
     !=======================================================================
