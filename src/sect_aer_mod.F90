@@ -1,3 +1,5 @@
+#undef AER_CONSTANT_WP
+!#define AER_CONSTANT_WP
 !------------------------------------------------------------------------------
 !                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
@@ -955,6 +957,7 @@ CONTAINS
     ! Partial pressure of ambient h2o in hPa/mbar
     pph2o=h2o*p_hPa
     pph2o=min(vpice,pph2o)
+    pph2o_ref = pph2o
 
     ! Saturation water vapor partial pressure in hPa
     pph2osat=18.452406985_dp-3505.1578807_dp/temp &
@@ -964,11 +967,14 @@ CONTAINS
     call pvolume_h2o(temp,pvh2o)
 
     do k=nsize,1,-1
+#if !defined( AER_CONSTANT_WP )
+       pph2o = pph2o_ref
        if (k<nsize.and.ST_Box(k)==0.) then
           pph2o=pph2o/exp(2.*ST_Box(k+1)*pvh2o/(aer_r_wet(k)*1E-4*8.314E7*temp))
        else
           pph2o=pph2o/exp(2.*ST_Box(k)*pvh2o/(aer_r_wet(k)*1E-4*8.314E7*temp))
        endif
+#endif
 !          water activity
        aw=min(0.999_dp,max(epsilon(1._dp),pph2o/pph2osat))
 
