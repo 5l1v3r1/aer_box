@@ -150,6 +150,9 @@ contains
     if (n_aer_bin.eq.40) then
        ! Volume doubling
        aer_Vrat = 2.0e+0_dp
+    !elseif (n_aer_bin.eq.150) then
+    !   ! For consistency with AER code
+    !   aer_Vrat = 1.2e+0_dp
     else
        ! Try to get the same range covered as the 40-bin model
        aer_Vrat = 2.0**(real(39,dp)/real(n_aer_bin-1,dp))
